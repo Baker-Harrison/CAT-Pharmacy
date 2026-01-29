@@ -1,0 +1,87 @@
+<UserControl x:Class="CatAdaptive.App.Views.UploadView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid Margin="40">
+        <StackPanel MaxWidth="600" VerticalAlignment="Center" 
+                    Visibility="{Binding IsProcessing, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+            <TextBlock Text="Upload Content" FontSize="28" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,10"/>
+            <TextBlock Text="Upload a PowerPoint file to generate lessons and quizzes" FontSize="14" Foreground="#64748B" Margin="0,0,0,30"/>
+
+            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="2" CornerRadius="12" Padding="30">
+                <StackPanel>
+                    <TextBlock Text="Select File" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                    
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBox Text="{Binding SelectedFilePath, Mode=TwoWay}" 
+                                 IsReadOnly="True" 
+                                 Padding="10" 
+                                 Background="White"
+                                 BorderBrush="#CBD5E1"/>
+                        
+                        <Button Grid.Column="1" 
+                                Content="Browse" 
+                                Command="{Binding BrowseFileCommand}"
+                                Padding="15,10"
+                                Margin="10,0,0,0"
+                                Background="#2563EB"
+                                Foreground="White"
+                                BorderThickness="0"
+                                AutomationProperties.Name="Browse for PowerPoint file"/>
+                    </Grid>
+
+                    <Button Content="Process File" 
+                            Command="{Binding ProcessFileCommand}"
+                            IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBoolConverter}}"
+                            Padding="15,12"
+                            Margin="0,20,0,0"
+                            Background="#10B981"
+                            Foreground="White"
+                            FontWeight="SemiBold"
+                            BorderThickness="0"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.Name="Process selected file"/>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#F0FDF4" BorderBrush="#BBF7D0" BorderThickness="1" CornerRadius="8" 
+                    Padding="20" Margin="0,20,0,0"
+                    Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="✓" FontSize="24" Foreground="#10B981" HorizontalAlignment="Center" Margin="0,0,0,10"
+                               Visibility="{Binding IsSuccess, Converter={StaticResource BoolToVisibilityConverter}}">
+                    </TextBlock>
+                    <TextBlock Text="{Binding StatusMessage}" FontWeight="Medium" TextWrapping="Wrap"/>
+                    
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0" 
+                                Visibility="{Binding ItemsGenerated, Converter={StaticResource ZeroToVisibilityConverter}}">
+                        <TextBlock Text="Knowledge Units: " Foreground="#64748B"/>
+                        <TextBlock Text="{Binding KnowledgeUnitsCreated}" FontWeight="SemiBold"/>
+                        <TextBlock Text="  |  Items Generated: " Foreground="#64748B" Margin="10,0,0,0"/>
+                        <TextBlock Text="{Binding ItemsGenerated}" FontWeight="SemiBold"/>
+                        <TextBlock Text="  |  Lessons Generated: " Foreground="#64748B" Margin="10,0,0,0"/>
+                        <TextBlock Text="{Binding LessonsGenerated}" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Skeleton Loader -->
+        <Grid Visibility="{Binding IsProcessing, Converter={StaticResource BoolToVisibilityConverter}}" Margin="40">
+            <StackPanel MaxWidth="600" VerticalAlignment="Center">
+                <Rectangle Fill="#E2E8F0" Height="30" Margin="0,0,0,20" RadiusX="4" RadiusY="4"/>
+                <Rectangle Fill="#E2E8F0" Height="20" Margin="0,0,0,10" RadiusX="4" RadiusY="4" Width="200"/>
+                <Rectangle Fill="#E2E8F0" Height="40" Margin="0,0,0,20" RadiusX="4" RadiusY="4"/>
+                <Rectangle Fill="#E2E8F0" Height="20" Margin="0,0,0,10" RadiusX="4" RadiusY="4" Width="300"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>
