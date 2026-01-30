@@ -30,9 +30,6 @@ public partial class UploadViewModel : ObservableObject
     private int _itemsGenerated;
 
     [ObservableProperty]
-    private int _lessonsGenerated;
-
-    [ObservableProperty]
     private bool _isSuccess;
 
     public UploadViewModel(LearningFlowService learningFlowService, IDialogService dialogService)
@@ -53,7 +50,6 @@ public partial class UploadViewModel : ObservableObject
             IsSuccess = false;
             KnowledgeUnitsCreated = 0;
             ItemsGenerated = 0;
-            LessonsGenerated = 0;
         }
     }
 
@@ -81,11 +77,10 @@ public partial class UploadViewModel : ObservableObject
             var result = await _learningFlowService.IngestAsync(SelectedFilePath);
             KnowledgeUnitsCreated = result.KnowledgeUnitsCreated;
             ItemsGenerated = result.ItemsGenerated;
-            LessonsGenerated = result.LessonsGenerated;
-            StatusMessage = $"Success! Created {result.KnowledgeUnitsCreated} knowledge units, {result.ItemsGenerated} items, and {result.LessonsGenerated} lessons.";
+            StatusMessage = $"Success! Created {result.KnowledgeUnitsCreated} knowledge units and {result.ItemsGenerated} items.";
             IsSuccess = true;
             WeakReferenceMessenger.Default.Send(new NotificationMessage(
-                new Notification("Content processed. Lessons are ready in the Lessons view.", NotificationType.Success, TimeSpan.FromSeconds(6))));
+                new Notification("Content processed successfully.", NotificationType.Success, TimeSpan.FromSeconds(6))));
         }
         catch (Exception ex)
         {

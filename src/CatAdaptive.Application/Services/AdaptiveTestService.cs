@@ -17,7 +17,7 @@ public sealed class AdaptiveTestService
         _sessionRepository = sessionRepository;
     }
 
-    public async Task<AdaptiveSession> StartSessionAsync(
+    public async Task<CatAdaptive.Domain.Aggregates.AdaptiveSession> StartSessionAsync(
         LearnerProfile learner,
         string? topic = null,
         TerminationCriteria? criteria = null,
@@ -32,7 +32,7 @@ public sealed class AdaptiveTestService
             throw new InvalidOperationException("No items available for the selected topic.");
         }
 
-        var session = new AdaptiveSession(
+        var session = new CatAdaptive.Domain.Aggregates.AdaptiveSession(
             Guid.NewGuid(),
             learner,
             items,
@@ -42,13 +42,13 @@ public sealed class AdaptiveTestService
         return session;
     }
 
-    public ItemTemplate? GetNextItem(AdaptiveSession session)
+    public ItemTemplate? GetNextItem(CatAdaptive.Domain.Aggregates.AdaptiveSession session)
     {
         return session.AdvanceToNextItem();
     }
 
     public async Task<ItemResponse> SubmitResponseAsync(
-        AdaptiveSession session,
+        CatAdaptive.Domain.Aggregates.AdaptiveSession session,
         bool isCorrect,
         TimeSpan responseTime,
         string rawResponse,
@@ -59,7 +59,7 @@ public sealed class AdaptiveTestService
         return response;
     }
 
-    public SessionReport GenerateReport(AdaptiveSession session)
+    public SessionReport GenerateReport(CatAdaptive.Domain.Aggregates.AdaptiveSession session)
     {
         var topicPerformance = session.Responses
             .GroupBy(r => r.ItemTemplateId)

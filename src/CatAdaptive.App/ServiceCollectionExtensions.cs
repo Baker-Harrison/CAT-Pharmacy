@@ -30,6 +30,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPptxParser, PptxParser>();
         services.AddSingleton<IDialogService, DialogService>();
 
+        // New adaptive system repositories
+        services.AddSingleton<IDomainKnowledgeGraphRepository, JsonDomainKnowledgeGraphRepository>();
+        services.AddSingleton<ILearnerModelRepository, JsonLearnerModelRepository>();
+        services.AddSingleton<IEnhancedContentGraphRepository, JsonEnhancedContentGraphRepository>();
+        services.AddSingleton<IAdaptiveSessionRepository, JsonAdaptiveSessionRepository>();
+
         var apiKey = configuration["Gemini:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -55,6 +61,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<AssessmentService>();
         services.AddSingleton<LearningFlowService>();
         services.AddSingleton<AdaptiveTestService>();
+
+        // New adaptive system services
+        services.AddSingleton<TargetSelectionService>();
+        services.AddSingleton<DiagnosticQuizService>();
+        services.AddSingleton<AdaptiveLessonGenerator>();
+        services.AddSingleton<AdaptiveLessonFlowService>();
+        services.AddSingleton<SpacedReactivationService>();
 
         services.AddSingleton<UploadViewModel>();
         services.AddSingleton<LessonsViewModel>();

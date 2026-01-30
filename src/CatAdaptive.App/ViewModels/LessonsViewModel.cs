@@ -31,6 +31,9 @@ public partial class LessonsViewModel : ObservableObject
     [ObservableProperty]
     private string? _statusMessage;
 
+    [ObservableProperty]
+    private bool _hasContent;
+
     public LessonsViewModel(LearningFlowService learningFlowService, ILessonPlanRepository lessonPlanRepository)
     {
         _learningFlowService = learningFlowService;
@@ -49,10 +52,51 @@ public partial class LessonsViewModel : ObservableObject
             {
                 Lessons.Add(lesson);
             }
+            
+            // Check if we have content but no lessons
+            HasContent = lessons.Count == 0;
+            StatusMessage = lessons.Count == 0 
+                ? "No lessons found. Upload content first, then click 'Generate Lessons'." 
+                : $"Loaded {lessons.Count} lesson(s).";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error loading lessons: {ex.Message}";
         }
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task GenerateLessonsAsync()
+    {
+        IsGeneratingLessons = true;
+        StatusMessage = "Generating lessons...";
+        
+        try
+        {
+            var lessonCount = await _learningFlowService.GenerateLessonsAsync();
+            
+            if (lessonCount > 0)
+            {
+                StatusMessage = $"Successfully generated {lessonCount} lesson(s)!";
+                await LoadLessonsAsync(); // Reload the lessons list
+            }
+            else
+            {
+                StatusMessage = "Lessons already exist.";
+                await LoadLessonsAsync(); // Reload to show existing lessons
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error generating lessons: {ex.Message}";
+        }
+        finally
+        {
+            IsGeneratingLessons = false;
         }
     }
 

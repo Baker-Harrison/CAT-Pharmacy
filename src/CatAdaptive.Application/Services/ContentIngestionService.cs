@@ -19,8 +19,6 @@ public sealed class ContentIngestionService
     private readonly IItemRepository _itemRepository;
     private readonly IContentGraphRepository _contentGraphRepository;
     private readonly IKnowledgeGraphRepository _knowledgeGraphRepository;
-    private readonly ILessonPlanGenerator _lessonPlanGenerator;
-    private readonly ILessonPlanRepository _lessonPlanRepository;
     private readonly ILogger<ContentIngestionService> _logger;
 
     public ContentIngestionService(
@@ -30,8 +28,6 @@ public sealed class ContentIngestionService
         IItemRepository itemRepository,
         IContentGraphRepository contentGraphRepository,
         IKnowledgeGraphRepository knowledgeGraphRepository,
-        ILessonPlanGenerator lessonPlanGenerator,
-        ILessonPlanRepository lessonPlanRepository,
         ILogger<ContentIngestionService> logger)
     {
         _pptxParser = pptxParser;
@@ -40,8 +36,6 @@ public sealed class ContentIngestionService
         _itemRepository = itemRepository;
         _contentGraphRepository = contentGraphRepository;
         _knowledgeGraphRepository = knowledgeGraphRepository;
-        _lessonPlanGenerator = lessonPlanGenerator;
-        _lessonPlanRepository = lessonPlanRepository;
         _logger = logger;
     }
 
@@ -96,32 +90,9 @@ public sealed class ContentIngestionService
              await _knowledgeGraphRepository.SaveAsync(emptyKnowledgeGraph, ct);
         }
 
-        // 4. Lessons
-        var existingLessons = await _lessonPlanRepository.GetAllAsync(ct);
-        int lessonsCount;
-
-        if (existingLessons.Count > 0)
-        {
-             _logger.LogInformation("Found {Count} existing lessons. Skipping lesson generation.", existingLessons.Count);
-             lessonsCount = existingLessons.Count;
-        }
-        else
-        {
-            _logger.LogInformation("Generating initial lessons...");
-            var initialLessons = await _lessonPlanGenerator.GenerateInitialLessonsAsync(contentGraph, ct);
-            
-            if (initialLessons.Count > 0)
-            {
-                await _lessonPlanRepository.ReplaceAllAsync(initialLessons, ct);
-                await _lessonPlanRepository.SaveChangesAsync(ct);
-            }
-            lessonsCount = initialLessons.Count;
-            _logger.LogInformation("Generated {Count} lessons.", lessonsCount);
-        }
-
+        // 4. Return result
         return new LearningIngestionResult(
             knowledgeUnits.Count,
-            itemsCount,
-            lessonsCount);
+            itemsCount);
     }
 }

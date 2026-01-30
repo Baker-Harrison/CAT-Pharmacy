@@ -9,7 +9,7 @@
         <StackPanel MaxWidth="600" VerticalAlignment="Center" 
                     Visibility="{Binding IsProcessing, Converter={StaticResource InverseBoolToVisibilityConverter}}">
             <TextBlock Text="Upload Content" FontSize="28" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,10"/>
-            <TextBlock Text="Upload a PowerPoint file to generate lessons and quizzes" FontSize="14" Foreground="#64748B" Margin="0,0,0,30"/>
+            <TextBlock Text="Upload a PowerPoint file to generate content" FontSize="14" Foreground="#64748B" Margin="0,0,0,30"/>
 
             <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="2" CornerRadius="12" Padding="30">
                 <StackPanel>
@@ -67,8 +67,6 @@
                         <TextBlock Text="{Binding KnowledgeUnitsCreated}" FontWeight="SemiBold"/>
                         <TextBlock Text="  |  Items Generated: " Foreground="#64748B" Margin="10,0,0,0"/>
                         <TextBlock Text="{Binding ItemsGenerated}" FontWeight="SemiBold"/>
-                        <TextBlock Text="  |  Lessons Generated: " Foreground="#64748B" Margin="10,0,0,0"/>
-                        <TextBlock Text="{Binding LessonsGenerated}" FontWeight="SemiBold"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

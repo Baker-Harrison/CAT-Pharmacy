@@ -10,7 +10,7 @@ namespace CatAdaptive.App.ViewModels;
 public partial class AdaptiveSessionViewModel : ObservableObject
 {
     private readonly AppServices.AdaptiveTestService _testService;
-    private AdaptiveSession? _session;
+    private CatAdaptive.Domain.Aggregates.AdaptiveSession? _session;
     private DateTime _itemStartTime;
 
     [ObservableProperty]

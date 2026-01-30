@@ -204,8 +204,14 @@
         <StackPanel Visibility="{Binding SelectedLesson, Converter={StaticResource NullToCollapsedConverter}}">
             <StackPanel Margin="0,0,0,32">
                 <TextBlock Text="My Lessons" Style="{StaticResource HeaderTextStyle}" Margin="0,0,0,8"/>
-                <TextBlock Text="Generate new lessons when your quiz results arrive." Style="{StaticResource SubHeaderTextStyle}"/>
+                <TextBlock Text="Generate new lessons from uploaded content." Style="{StaticResource SubHeaderTextStyle}"/>
             </StackPanel>
+
+            <!-- Status Message -->
+            <Border Background="#F0F9FF" BorderBrush="#BAE6FD" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,24"
+                    Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibilityConverter}}">
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#0369A1" TextWrapping="Wrap"/>
+            </Border>
 
             <Border Background="{StaticResource WarningBackgroundBrush}" 
                     BorderBrush="{StaticResource WarningBorderBrush}" 
@@ -251,9 +257,26 @@
                         <TextBlock Text="📚" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,24"/>
                         <TextBlock Text="No lessons available yet" FontSize="20" FontWeight="SemiBold" 
                                    Foreground="{StaticResource PrimaryTextBrush}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                        <TextBlock Text="Complete a generated quiz to get your first personalized lesson." 
+                        <TextBlock Text="Upload content first, then click 'Generate Lessons' to create personalized lessons." 
                                    FontSize="16" Foreground="{StaticResource SecondaryTextBrush}" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="400"/>
-                        <Button Content="Refresh Lessons" Style="{StaticResource OutlineButtonStyle}" Margin="0,24,0,0"
+                        
+                        <!-- Generate Lessons Button -->
+                        <Button Margin="0,24,0,12"
+                                Command="{Binding GenerateLessonsCommand}" HorizontalAlignment="Center"
+                                IsEnabled="{Binding IsGeneratingLessons, Converter={StaticResource InverseBoolConverter}}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+                                    <Setter Property="Content" Value="Generate Lessons"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsGeneratingLessons}" Value="True">
+                                            <Setter Property="Content" Value="Generating..."/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        
+                        <Button Content="Refresh Lessons" Style="{StaticResource OutlineButtonStyle}"
                                 Command="{Binding LoadLessonsCommand}" HorizontalAlignment="Center"/>
                     </StackPanel>
 

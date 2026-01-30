@@ -9,7 +9,7 @@ This workflow handles developing new features for the CAT Pharmacy project, incl
 ## Steps
 
 1. **Read the documentation**
-   - Review `docs/architecture.md` for architectural guidelines
+   - Review relevant `/docs` files for architectural guidelines
    - Check `AGENTS.md` for coding conventions and project rules
    - Understand the feature requirements and context
 

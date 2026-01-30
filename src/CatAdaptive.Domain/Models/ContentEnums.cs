@@ -20,6 +20,27 @@ public enum ContentNodeType
     /// <summary>A step-by-step worked problem demonstrating application.</summary>
     WorkedProblem,
     
+    /// <summary>A worked example showing the process.</summary>
+    WorkedExample,
+    
+    /// <summary>A clinical case for application.</summary>
+    ClinicalCase,
+    
+    /// <summary>A question for assessment.</summary>
+    Question,
+    
+    /// <summary>A visual aid or diagram.</summary>
+    Visual,
+    
+    /// <summary>A mnemonic device for memory.</summary>
+    Mnemonic,
+    
+    /// <summary>A skill to be learned.</summary>
+    Skill,
+    
+    /// <summary>An objective to be achieved.</summary>
+    Objective,
+    
     /// <summary>A learning objective from course materials.</summary>
     LearningObjective,
     
