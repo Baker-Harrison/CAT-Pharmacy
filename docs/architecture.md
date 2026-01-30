@@ -2,74 +2,68 @@
 
 ## Overview
 
-The system is a modular C# WPF desktop application. The default user flow is **Upload → Lessons → Embedded Quiz → Next Lessons**, with CAT retained as a separate assessment view.
+This is a modular C# WPF desktop application. The primary user flow is **Upload → Lessons → Embedded Quiz → Next Lessons**, with CAT retained as a separate assessment view.
 
-```text
+```
 Solution
 ├── src
 │   ├── CatAdaptive.sln
-│   ├── CatAdaptive.App           (WPF desktop UI)
-│   ├── CatAdaptive.Domain        (Domain models + graphs)
-│   ├── CatAdaptive.Application   (Learning flow + CAT services)
-│   └── CatAdaptive.Infrastructure (PPTX ingestion, persistence, Gemini)
+│   ├── CatAdaptive.App            (WPF desktop UI)
+│   ├── CatAdaptive.Domain         (Domain models + aggregates)
+│   ├── CatAdaptive.Application    (Use cases + orchestration)
+│   └── CatAdaptive.Infrastructure (Parsing, persistence, generators)
 └── docs
-    └── architecture.md
 ```
 
-## Core Modules
+## Layers
 
-### 1. Presentation Layer (CatAdaptive.App)
+### Presentation (CatAdaptive.App)
+- Views: Upload, Lessons, Adaptive Session (CAT), Debug
+- ViewModels wired via `MainWindow.xaml` DataTemplates
+- Section-level progress tracking for lesson reading (scroll-based)
 
-- Three views: **Upload Content**, **Lessons**, **CAT**.
-- Lessons view contains a list page and a lesson detail page with embedded quiz.
-- ViewModel-to-View wiring lives in `src/CatAdaptive.App/MainWindow.xaml` DataTemplates.
-- Lessons list shows progress + quiz score, and generation status when new lessons are created.
+### Application (CatAdaptive.Application)
+- `ContentIngestionService` parses PPTX, builds graphs, generates initial lessons
+- `AssessmentService` evaluates quizzes, updates the knowledge graph, and generates remediation or next lessons
+- `LearningFlowService` is the thin orchestration layer used by the UI
 
-### 2. Application Layer (CatAdaptive.Application)
+### Domain (CatAdaptive.Domain)
+- Aggregates: `ContentGraph`, `KnowledgeGraph`, `AdaptiveSession`
+- Models: `LessonPlan`, `LessonQuiz`, `EvidenceRecord`, `AbilityEstimate`, etc.
+- Lesson progress is captured in `SectionProgress` and rolled into `LessonPlan.ProgressPercent`
 
-- `LearningFlowService` orchestrates the default learning flow.
-- `AdaptiveTestService` handles CAT (untouched).
-- Interfaces for lesson generation and evaluation:
-  - `ILessonPlanGenerator`
-  - `ILessonQuizEvaluator`
-  - `ILessonPlanRepository`
+### Infrastructure (CatAdaptive.Infrastructure)
+- Parsers: `PptxParser`
+- Generators: Gemini-backed lesson/quiz generation and evaluation
+- Repositories: JSON persistence under `%LOCALAPPDATA%\CatAdaptive\data\`
 
-### 3. Domain Layer (CatAdaptive.Domain)
+## Default Learning Flow
 
-Key domain models and aggregates:
-
-- `ContentGraph` (content supply from PPTX)
-- `KnowledgeGraph` (learner mastery state)
-- `LessonPlan` (long-form lesson + embedded quiz)
-- `EvidenceRecord` (updates KnowledgeGraph after quiz)
-- `AdaptiveSession` (CAT)
-
-### 4. Infrastructure Layer (CatAdaptive.Infrastructure)
-
-- `PptxParser` extracts knowledge units from slides.
-- `Json*Repository` implementations persist lessons, graphs, and items.
-- `GeminiLessonPlanGenerator` + `GeminiLessonQuizEvaluator` implement AI lesson creation and scoring.
-
-## Default Learning Flow (Active Learning)
-
-1. **Upload PPTX** → parse into knowledge units.
-2. **Content graph rebuilt** + knowledge graph reset for the default learner.
-3. **Gemini initial lessons** choose the simplest concepts when KG is empty.
-4. **Lesson delivery** (15–20 minute reads) with embedded active-learning prompts.
-5. **Embedded quiz** (fill-in-the-blank + open response).
-6. **Scoring** via Gemini rubric evaluation.
+1. **Upload PPTX** → knowledge units extracted.
+2. **Item generation** → CAT items produced (Gemini or simple generator).
+3. **Graphs** → content graph created; knowledge graph ensured for default learner.
+4. **Initial lessons** generated from the content graph.
+5. **Lesson delivery** with embedded quiz.
+6. **Quiz evaluation** → lesson progress updated, knowledge graph updated.
 7. **Next step**
-   - Score < 80% → remediation lesson.
-   - Score ≥ 80% → next lesson batch based on graphs.
+   - Score < 80% → remediation lesson generated.
+   - Score ≥ 80% → next lessons generated.
 
 ## CAT Flow
 
-- CAT remains a separate view.
-- Uses `AdaptiveTestService`, item repositories, and IRT logic for ability estimation.
+- Separate view using `AdaptiveTestService` and item repositories.
+- IRT-based ability estimation and adaptive item selection.
 
-## Persistence Strategy
+## Data Storage
 
-- Lessons stored as JSON under `%LOCALAPPDATA%\CatAdaptive\data\lesson-plans.json`.
-- Content graph stored as JSON under `%LOCALAPPDATA%\CatAdaptive\data\content-graph.json`.
-- Knowledge graph stored as JSON per learner.
-- Items and knowledge units stored as JSON for CAT.
+Stored as JSON under `%LOCALAPPDATA%\CatAdaptive\data\`:
+
+- `lesson-plans.json`
+- `content-graph.json`
+- `knowledge-graph-<learnerId>.json`
+- `knowledge-units.json`
+- `item-bank.json`
+
+## Configuration
+
+`appsettings.json` provides Gemini settings. `GEMINI_API_KEY` overrides the config value. Lesson plan generation and quiz evaluation are Gemini-backed in the current implementation.
