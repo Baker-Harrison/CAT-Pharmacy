@@ -117,3 +117,6 @@ appsettings.Development.json
 
 # IDE - Visual Studio
 .vs/
+
+# Environment Variables
+.env

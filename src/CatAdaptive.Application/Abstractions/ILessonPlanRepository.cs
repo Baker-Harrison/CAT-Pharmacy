@@ -10,4 +10,5 @@ public interface ILessonPlanRepository
     Task ReplaceAllAsync(IEnumerable<LessonPlan> lessons, CancellationToken ct = default);
     Task UpdateAsync(LessonPlan lesson, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
+    Task UpdateSectionProgressAsync(Guid lessonId, Guid sectionId, double readPercent, bool isRead, CancellationToken ct = default);
 }

@@ -10,6 +10,7 @@ namespace CatAdaptive.App.ViewModels;
 public partial class LessonsViewModel : ObservableObject
 {
     private readonly LearningFlowService _learningFlowService;
+    private readonly ILessonPlanRepository _lessonPlanRepository;
 
     public ObservableCollection<LessonPlan> Lessons { get; } = new();
 
@@ -22,24 +23,36 @@ public partial class LessonsViewModel : ObservableObject
     private bool _isGeneratingLessons;
 
     [ObservableProperty]
+    private bool _isLoading;
+
+    [ObservableProperty]
     private bool _isSubmittingQuiz;
 
     [ObservableProperty]
     private string? _statusMessage;
 
-    public LessonsViewModel(LearningFlowService learningFlowService)
+    public LessonsViewModel(LearningFlowService learningFlowService, ILessonPlanRepository lessonPlanRepository)
     {
         _learningFlowService = learningFlowService;
+        _lessonPlanRepository = lessonPlanRepository;
     }
 
     [RelayCommand]
     public async Task LoadLessonsAsync()
     {
-        Lessons.Clear();
-        var lessons = await _learningFlowService.GetLessonsAsync();
-        foreach (var lesson in lessons)
+        IsLoading = true;
+        try
         {
-            Lessons.Add(lesson);
+            Lessons.Clear();
+            var lessons = await _learningFlowService.GetLessonsAsync();
+            foreach (var lesson in lessons)
+            {
+                Lessons.Add(lesson);
+            }
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
@@ -102,6 +115,29 @@ public partial class LessonsViewModel : ObservableObject
             IsGeneratingLessons = false;
         }
     }
+
+    public async Task UpdateSectionProgressAsync(int sectionIndex, double readPercent)
+    {
+        if (SelectedLesson == null || sectionIndex < 0 || sectionIndex >= SelectedLesson.Sections.Count)
+            return;
+
+        var section = SelectedLesson.Sections[sectionIndex];
+        var sectionProgress = SelectedLesson.SectionProgresses.FirstOrDefault(sp => sp.SectionId == section.Id);
+        
+        if (sectionProgress == null || readPercent > sectionProgress.ReadPercent)
+        {
+            var isRead = readPercent >= 90.0; // Consider section read if 90% scrolled
+            await _lessonPlanRepository.UpdateSectionProgressAsync(
+                SelectedLesson.Id, 
+                section.Id, // Use the section's actual ID
+                readPercent, 
+                isRead);
+            
+            // Update the local lesson
+            var updatedLesson = SelectedLesson.WithSectionProgress(section.Id, readPercent, isRead);
+            SelectedLesson = updatedLesson;
+        }
+    }
 }
 
 public sealed partial class LessonQuizQuestionViewModel : ObservableObject
@@ -113,9 +149,9 @@ public sealed partial class LessonQuizQuestionViewModel : ObservableObject
 
     public string TypeDisplay => Question.Type switch
     {
-        LessonQuizQuestionType.FillInBlank => "Fill in the blank",
-        LessonQuizQuestionType.OpenResponse => "Open response",
-        _ => "Question"
+        LessonQuizQuestionType.FillInBlank => "FILL IN THE BLANK",
+        LessonQuizQuestionType.OpenResponse => "OPEN RESPONSE",
+        _ => "QUESTION"
     };
 
     public LessonQuizQuestionViewModel(LessonQuizQuestion question)

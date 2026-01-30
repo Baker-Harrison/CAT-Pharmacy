@@ -4,96 +4,422 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Grid Margin="30">
-        <StackPanel Visibility="{Binding SelectedLesson, Converter={StaticResource NullToCollapsedConverter}}">
-            <TextBlock Text="Lessons" FontSize="26" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,10"/>
-            <TextBlock Text="Generate new lessons when your quiz results arrive." FontSize="13" Foreground="#64748B" Margin="0,0,0,20"/>
+             d:DesignHeight="600" d:DesignWidth="900">
+    <UserControl.Resources>
+        <!-- Colors -->
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#1E293B"/>
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#64748B"/>
+        <SolidColorBrush x:Key="PrimaryBlueBrush" Color="#2563EB"/>
+        <SolidColorBrush x:Key="PrimaryBlueHoverBrush" Color="#1D4ED8"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="White"/>
+        <SolidColorBrush x:Key="BackgroundBrush" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#10B981"/>
+        <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FEFCE8"/>
+        <SolidColorBrush x:Key="WarningBorderBrush" Color="#FDE68A"/>
+        <SolidColorBrush x:Key="WarningTextBrush" Color="#92400E"/>
+        <SolidColorBrush x:Key="ErrorTextBrush" Color="#DC2626"/>
 
-            <Border Background="#FEFCE8" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="8" Padding="12"
+        <!-- Typography -->
+        <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+        </Style>
+
+        <Style x:Key="SubHeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}"/>
+        </Style>
+
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+            <Setter Property="Margin" Value="0,24,0,12"/>
+        </Style>
+
+        <!-- Components -->
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#000000" Opacity="0.03" BlurRadius="8" ShadowDepth="2" Direction="270"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryBlueBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource PrimaryBlueHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                                <Setter Property="Cursor" Value="No"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="OutlineButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryBlueBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBlueBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#EFF6FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ModernProgressBar" TargetType="ProgressBar">
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="Background" Value="#F1F5F9"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryBlueBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Border Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="5"/>
+                            <Border Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="5"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="InputTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource PrimaryBlueBrush}"/>
+                                <Setter TargetName="border" Property="Background" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SectionContainerStyle" TargetType="Border">
+            <Setter Property="Margin" Value="0,0,0,32"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="Padding" Value="0,0,0,16"/>
+        </Style>
+
+        <Style x:Key="SectionHeaderContainerStyle" TargetType="Grid">
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
+        <Style x:Key="SectionProgressIndicatorStyle" TargetType="Border">
+            <Setter Property="Background" Value="#F1F5F9"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="ViewTransitionStyle" TargetType="FrameworkElement">
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <TranslateTransform/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Visibility" Value="Visible">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.4"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)" From="20" To="0" Duration="0:0:0.4">
+                                    <DoubleAnimation.EasingFunction>
+                                        <QuadraticEase EasingMode="EaseOut"/>
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+    </UserControl.Resources>
+
+    <Grid Margin="32">
+        <!-- Lesson List View -->
+        <StackPanel Visibility="{Binding SelectedLesson, Converter={StaticResource NullToCollapsedConverter}}">
+            <StackPanel Margin="0,0,0,32">
+                <TextBlock Text="My Lessons" Style="{StaticResource HeaderTextStyle}" Margin="0,0,0,8"/>
+                <TextBlock Text="Generate new lessons when your quiz results arrive." Style="{StaticResource SubHeaderTextStyle}"/>
+            </StackPanel>
+
+            <Border Background="{StaticResource WarningBackgroundBrush}" 
+                    BorderBrush="{StaticResource WarningBorderBrush}" 
+                    BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,24"
                     Visibility="{Binding IsGeneratingLessons, Converter={StaticResource BoolToVisibilityConverter}}">
-                <TextBlock Text="Generating new lessons..." FontWeight="SemiBold" Foreground="#92400E"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⟳" FontSize="16" FontWeight="Bold" Foreground="{StaticResource WarningTextBrush}" Margin="0,0,8,0"/>
+                    <TextBlock Text="Generating new personalized lessons..." FontWeight="SemiBold" Foreground="{StaticResource WarningTextBrush}"/>
+                </StackPanel>
             </Border>
 
-            <ItemsControl ItemsSource="{Binding Lessons}" Margin="0,20,0,0">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="18" Margin="0,0,0,15">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" Foreground="#1E293B"/>
-                                    <TextBlock Text="  •  Remediation" Margin="10,0,0,0" FontSize="12" Foreground="#DC2626"
-                                               Visibility="{Binding IsRemediation, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                </StackPanel>
+            <!-- Main Content Area with States -->
+            <Grid>
+                <!-- Loading State -->
+                <StackPanel Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"
+                            HorizontalAlignment="Center" Margin="0,40,0,0">
+                    <TextBlock Text="⟳" FontSize="32" Foreground="{StaticResource PrimaryBlueBrush}" 
+                               HorizontalAlignment="Center" Margin="0,0,0,16" RenderTransformOrigin="0.5,0.5">
+                        <TextBlock.RenderTransform>
+                            <RotateTransform x:Name="SpinnerTransform"/>
+                        </TextBlock.RenderTransform>
+                        <TextBlock.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="SpinnerTransform" 
+                                                         Storyboard.TargetProperty="Angle" 
+                                                         From="0" To="360" Duration="0:0:1" RepeatBehavior="Forever"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </TextBlock.Triggers>
+                    </TextBlock>
+                    <TextBlock Text="Loading your learning plan..." FontSize="16" Foreground="{StaticResource SecondaryTextBrush}"/>
+                </StackPanel>
 
-                                <TextBlock Text="{Binding Summary}" Foreground="#475569" TextWrapping="Wrap" Margin="0,6,0,10"/>
+                <!-- Content (Not Loading) -->
+                <Grid Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                    
+                    <!-- Empty State -->
+                    <StackPanel Visibility="{Binding Lessons.Count, Converter={StaticResource ZeroToCollapsedConverter}}"
+                                HorizontalAlignment="Center" Margin="0,40,0,0">
+                        <TextBlock Text="📚" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,24"/>
+                        <TextBlock Text="No lessons available yet" FontSize="20" FontWeight="SemiBold" 
+                                   Foreground="{StaticResource PrimaryTextBrush}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                        <TextBlock Text="Complete a generated quiz to get your first personalized lesson." 
+                                   FontSize="16" Foreground="{StaticResource SecondaryTextBrush}" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="400"/>
+                        <Button Content="Refresh Lessons" Style="{StaticResource OutlineButtonStyle}" Margin="0,24,0,0"
+                                Command="{Binding LoadLessonsCommand}" HorizontalAlignment="Center"/>
+                    </StackPanel>
 
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="Progress" Foreground="#64748B" FontSize="12" Margin="0,0,10,0"/>
-                                    <ProgressBar Width="160" Height="8" Maximum="100" Value="{Binding ProgressPercent}"/>
-                                    <TextBlock Text="{Binding LastScorePercent, StringFormat=Score: {0:0}%, TargetNullValue=Score: --}" Foreground="#1E293B" Margin="12,0,0,0"/>
-                                </StackPanel>
+                    <!-- Lesson List -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  Visibility="{Binding Lessons.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
+                        <ItemsControl ItemsSource="{Binding Lessons}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <StackPanel Grid.Column="0" Margin="0,0,24,0">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                                    <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource PrimaryTextBrush}"/>
+                                                    <Border Background="#FEE2E2" CornerRadius="4" Padding="8,2" Margin="12,0,0,0"
+                                                            Visibility="{Binding IsRemediation, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                        <TextBlock Text="Remediation" FontSize="11" FontWeight="Bold" Foreground="#DC2626"/>
+                                                    </Border>
+                                                </StackPanel>
 
-                                <Button Content="Open Lesson" Margin="0,12,0,0" Padding="12,8" Background="#2563EB" Foreground="White" BorderThickness="0"
-                                        Command="{Binding DataContext.OpenLessonCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}"/>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                                                <TextBlock Text="{Binding Summary}" Foreground="{StaticResource SecondaryTextBrush}" 
+                                                           TextWrapping="Wrap" Margin="0,0,0,16" LineHeight="20"/>
+
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="Progress" Foreground="{StaticResource SecondaryTextBrush}" FontSize="13" FontWeight="Medium" Margin="0,0,12,0"/>
+                                                    <ProgressBar Style="{StaticResource ModernProgressBar}" Width="200" Maximum="100" Value="{Binding ProgressPercent}"/>
+                                                    <TextBlock Text="{Binding LastScorePercent, StringFormat=Score: {0:0}%, TargetNullValue=Score: --}" 
+                                                               Foreground="{StaticResource PrimaryTextBrush}" FontSize="13" FontWeight="SemiBold" Margin="16,0,0,0"/>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <Button Content="Open Lesson" Style="{StaticResource PrimaryButtonStyle}"
+                                                        Command="{Binding DataContext.OpenLessonCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
         </StackPanel>
 
-        <ScrollViewer Visibility="{Binding SelectedLesson, Converter={StaticResource NullToVisibilityConverter}}">
-            <StackPanel MaxWidth="820">
-                <Button Content="← Back to Lessons" Command="{Binding BackToListCommand}" Padding="8,4" Width="140" Background="Transparent" BorderThickness="0"
-                        HorizontalAlignment="Left" Foreground="#2563EB"/>
+        <!-- Lesson Detail View -->
+        <ScrollViewer Visibility="{Binding SelectedLesson, Converter={StaticResource NullToVisibilityConverter}}"
+                      HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                      Style="{StaticResource ViewTransitionStyle}">
+            <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+                <Button Command="{Binding BackToListCommand}" 
+                        Background="Transparent" BorderThickness="0" 
+                        HorizontalAlignment="Left" Margin="-8,0,0,24" Cursor="Hand">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="←" FontSize="18" Foreground="{StaticResource PrimaryBlueBrush}" Margin="0,0,8,0"/>
+                        <TextBlock Text="Back to Lessons" FontSize="16" Foreground="{StaticResource PrimaryBlueBrush}" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Button>
 
-                <TextBlock Text="{Binding SelectedLesson.Title}" FontSize="24" FontWeight="Bold" Foreground="#1E293B" Margin="0,12,0,8"/>
-                <TextBlock Text="{Binding SelectedLesson.Summary}" Foreground="#475569" TextWrapping="Wrap" Margin="0,0,0,20"/>
+                <TextBlock Text="{Binding SelectedLesson.Title}" Style="{StaticResource HeaderTextStyle}" Margin="0,0,0,12"/>
+                <TextBlock Text="{Binding SelectedLesson.Summary}" FontSize="16" Foreground="{StaticResource SecondaryTextBrush}" 
+                           TextWrapping="Wrap" Margin="0,0,0,32" LineHeight="24"/>
 
+                <!-- Content Sections -->
                 <ItemsControl ItemsSource="{Binding SelectedLesson.Sections}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Margin="0,0,0,20">
-                                <TextBlock Text="{Binding Heading}" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,0,0,6"/>
-                                <TextBlock Text="{Binding Body}" TextWrapping="Wrap" Foreground="#334155"/>
-                                <ItemsControl ItemsSource="{Binding Prompts}" Margin="0,10,0,0">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8">
-                                                <TextBlock Text="{Binding Prompt}" TextWrapping="Wrap" Foreground="#0F172A"/>
+                            <Border Style="{StaticResource SectionContainerStyle}" Tag="{Binding}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    
+                                    <!-- Section Header with Progress -->
+                                    <Grid Style="{StaticResource SectionHeaderContainerStyle}" Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <TextBlock Text="{Binding Heading}" Style="{StaticResource SectionHeaderStyle}" Grid.Column="0"/>
+                                        
+                                        <StackPanel Orientation="Horizontal" Grid.Column="1">
+                                            <Border Style="{StaticResource SectionProgressIndicatorStyle}">
+                                                <TextBlock Text="✓" FontSize="12" Foreground="#10B981" FontWeight="Bold" 
+                                                          Visibility="{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=DataContext.SelectedLesson.SectionProgresses[{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=ItemsSource.IndexOf({Binding})}].IsRead, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                             </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
+                                            <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=DataContext.SelectedLesson.SectionProgresses[{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=ItemsSource.IndexOf({Binding})}].ReadPercent, StringFormat={}{0:F0}%}" 
+                                                      FontSize="12" FontWeight="SemiBold" 
+                                                      Foreground="{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=DataContext.SelectedLesson.SectionProgresses[{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=ItemsSource.IndexOf({Binding})}].IsRead, Converter={StaticResource BoolToColorConverter}}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    <!-- Section Content -->
+                                    <StackPanel Grid.Row="1">
+                                        <TextBlock Text="{Binding Body}" TextWrapping="Wrap" Foreground="#334155" 
+                                                   FontSize="16" LineHeight="26" Margin="0,0,0,16"/>
+                                        
+                                        <ItemsControl ItemsSource="{Binding Prompts}" Margin="0,8,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#F1F5F9" BorderBrush="{StaticResource BorderBrush}" 
+                                                            BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="💡" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Prompt}" TextWrapping="Wrap" 
+                                                                       Foreground="{StaticResource PrimaryTextBrush}" FontSize="15" FontStyle="Italic"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Text="Knowledge Check" FontSize="20" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,10,0,10"/>
+                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,16,0,32"/>
+
+                <TextBlock Text="Knowledge Check" Style="{StaticResource SectionHeaderStyle}"/>
 
                 <ItemsControl ItemsSource="{Binding QuizQuestions}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,12">
+                            <Border Style="{StaticResource CardStyle}">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding TypeDisplay}" FontSize="12" Foreground="#64748B" Margin="0,0,0,4"/>
-                                    <TextBlock Text="{Binding Question.Prompt}" TextWrapping="Wrap" Foreground="#1E293B"/>
-                                    <TextBox Text="{Binding ResponseText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="80"
-                                             TextWrapping="Wrap" Margin="0,8,0,0" BorderBrush="#CBD5E1" Background="#F8FAFC"/>
+                                    <TextBlock Text="{Binding TypeDisplay}" FontSize="12" FontWeight="Bold" 
+                                               Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,8"/>
+                                    
+                                    <TextBlock Text="{Binding Question.Prompt}" TextWrapping="Wrap" 
+                                               Foreground="{StaticResource PrimaryTextBrush}" FontSize="16" FontWeight="Medium" Margin="0,0,0,16"/>
+                                    
+                                    <TextBox Text="{Binding ResponseText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource InputTextBoxStyle}"
+                                             AcceptsReturn="True" MinHeight="100" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Text="{Binding StatusMessage}" Foreground="#DC2626" Margin="0,0,0,10"
-                           Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+                <Border Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,24"
+                        Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibilityConverter}}">
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource ErrorTextBrush}" TextWrapping="Wrap"/>
+                </Border>
 
-                <Button Content="Submit Quiz" Command="{Binding SubmitQuizCommand}" Padding="16,10" Background="#10B981" Foreground="White" BorderThickness="0"
+                <Button Content="Submit Quiz &amp; Generate Next Steps" Command="{Binding SubmitQuizCommand}" 
+                        Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Left"
+                        FontSize="16" Padding="24,12"
                         IsEnabled="{Binding IsSubmittingQuiz, Converter={StaticResource InverseBoolConverter}}"/>
+                
+                <TextBlock Text="Submitting your answers will help tailor future lessons to your needs." 
+                           FontSize="13" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,12,0,40"/>
             </StackPanel>
         </ScrollViewer>
     </Grid>

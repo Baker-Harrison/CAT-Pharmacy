@@ -1,71 +1,37 @@
-using System.Text.Json;
 using CatAdaptive.Application.Abstractions;
 using CatAdaptive.Domain.Models;
 
 namespace CatAdaptive.Infrastructure.Repositories;
 
-public sealed class JsonLessonPlanRepository : ILessonPlanRepository
+public sealed class JsonLessonPlanRepository : BaseJsonRepository<LessonPlan>, ILessonPlanRepository
 {
-    private readonly string _filePath;
-    private List<LessonPlan> _lessons = new();
-    private bool _loaded;
-
-    public JsonLessonPlanRepository(string dataDirectory)
+    public JsonLessonPlanRepository(string dataDirectory) 
+        : base(dataDirectory, "lesson-plans.json")
     {
-        Directory.CreateDirectory(dataDirectory);
-        _filePath = Path.Combine(dataDirectory, "lesson-plans.json");
     }
 
-    private async Task EnsureLoadedAsync(CancellationToken ct)
-    {
-        if (_loaded) return;
-        if (File.Exists(_filePath))
-        {
-            var json = await File.ReadAllTextAsync(_filePath, ct);
-            _lessons = JsonSerializer.Deserialize<List<LessonPlan>>(json, JsonRepositoryDefaults.DefaultCaseInsensitive) ?? new();
-        }
-        _loaded = true;
-    }
+    protected override Guid GetId(LessonPlan item) => item.Id;
 
-    public async Task<IReadOnlyList<LessonPlan>> GetAllAsync(CancellationToken ct = default)
+    public override async Task UpdateAsync(LessonPlan lesson, CancellationToken ct = default)
     {
         await EnsureLoadedAsync(ct);
-        return _lessons.ToList();
-    }
-
-    public async Task<LessonPlan?> GetByIdAsync(Guid id, CancellationToken ct = default)
-    {
-        await EnsureLoadedAsync(ct);
-        return _lessons.FirstOrDefault(l => l.Id == id);
-    }
-
-    public async Task AddRangeAsync(IEnumerable<LessonPlan> lessons, CancellationToken ct = default)
-    {
-        await EnsureLoadedAsync(ct);
-        _lessons.AddRange(lessons);
-    }
-
-    public async Task ReplaceAllAsync(IEnumerable<LessonPlan> lessons, CancellationToken ct = default)
-    {
-        await EnsureLoadedAsync(ct);
-        _lessons = lessons?.ToList() ?? new List<LessonPlan>();
-    }
-
-    public async Task UpdateAsync(LessonPlan lesson, CancellationToken ct = default)
-    {
-        await EnsureLoadedAsync(ct);
-        var index = _lessons.FindIndex(l => l.Id == lesson.Id);
+        var index = _items.FindIndex(l => l.Id == lesson.Id);
         if (index >= 0)
         {
-            _lessons[index] = lesson;
+            _items[index] = lesson;
             return;
         }
-        _lessons.Add(lesson);
+        _items.Add(lesson);
     }
 
-    public async Task SaveChangesAsync(CancellationToken ct = default)
+    public async Task UpdateSectionProgressAsync(Guid lessonId, Guid sectionId, double readPercent, bool isRead, CancellationToken ct = default)
     {
-        var json = JsonSerializer.Serialize(_lessons, JsonRepositoryDefaults.CamelCase);
-        await File.WriteAllTextAsync(_filePath, json, ct);
+        await EnsureLoadedAsync(ct);
+        var lesson = _items.FirstOrDefault(l => l.Id == lessonId);
+        if (lesson != null)
+        {
+            var updatedLesson = lesson.WithSectionProgress(sectionId, readPercent, isRead);
+            await UpdateAsync(updatedLesson, ct);
+        }
     }
 }

@@ -2,16 +2,17 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using Microsoft.Win32;
 using CatAdaptive.App.Messages;
 using CatAdaptive.App.Models;
 using CatAdaptive.Application.Services;
+using CatAdaptive.Application.Abstractions;
 
 namespace CatAdaptive.App.ViewModels;
 
 public partial class UploadViewModel : ObservableObject
 {
     private readonly LearningFlowService _learningFlowService;
+    private readonly IDialogService _dialogService;
 
     [ObservableProperty]
     private string? _selectedFilePath;
@@ -34,23 +35,20 @@ public partial class UploadViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSuccess;
 
-    public UploadViewModel(LearningFlowService learningFlowService)
+    public UploadViewModel(LearningFlowService learningFlowService, IDialogService dialogService)
     {
         _learningFlowService = learningFlowService;
+        _dialogService = dialogService;
     }
 
     [RelayCommand]
     private void BrowseFile()
     {
-        var dialog = new OpenFileDialog
-        {
-            Filter = "PowerPoint Files (*.pptx)|*.pptx",
-            Title = "Select a PowerPoint file"
-        };
+        var filePath = _dialogService.OpenFile("PowerPoint Files (*.pptx)|*.pptx", "Select a PowerPoint file");
 
-        if (dialog.ShowDialog() == true)
+        if (!string.IsNullOrEmpty(filePath))
         {
-            SelectedFilePath = dialog.FileName;
+            SelectedFilePath = filePath;
             StatusMessage = null;
             IsSuccess = false;
             KnowledgeUnitsCreated = 0;

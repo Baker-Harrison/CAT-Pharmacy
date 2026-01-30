@@ -3,13 +3,9 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Threading;
 using CatAdaptive.App.ViewModels;
-using CatAdaptive.Infrastructure.Generation;
-using CatAdaptive.Infrastructure.Parsing;
-using CatAdaptive.Infrastructure.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using AppAbstractions = CatAdaptive.Application.Abstractions;
-using AppServices = CatAdaptive.Application.Services;
+using Microsoft.Extensions.Logging;
 
 namespace CatAdaptive.App;
 
@@ -33,6 +29,8 @@ public partial class App : System.Windows.Application
 
     private static void ConfigureServices(IServiceCollection services)
     {
+        LoadEnvironmentVariables();
+
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
@@ -41,44 +39,29 @@ public partial class App : System.Windows.Application
 
         services.AddSingleton<IConfiguration>(configuration);
 
-        var dataDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "CatAdaptive",
-            "data");
-
-        services.AddSingleton<AppAbstractions.IItemRepository>(new JsonItemRepository(dataDirectory));
-        services.AddSingleton<AppAbstractions.IKnowledgeUnitRepository>(new JsonKnowledgeUnitRepository(dataDirectory));
-        services.AddSingleton<AppAbstractions.IContentGraphRepository>(new JsonContentGraphRepository(dataDirectory));
-        services.AddSingleton<AppAbstractions.IKnowledgeGraphRepository>(new JsonKnowledgeGraphRepository(dataDirectory));
-        services.AddSingleton<AppAbstractions.ILessonPlanRepository>(new JsonLessonPlanRepository(dataDirectory));
-        services.AddSingleton<AppAbstractions.ISessionRepository>(new InMemorySessionRepository());
-        services.AddSingleton<AppAbstractions.IPptxParser, PptxParser>();
-
-        var apiKey = configuration["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
-        var modelName = configuration["Gemini:ModelName"] ?? "gemini-2.0-flash-exp";
-        var useGemini = configuration.GetValue<bool>("Gemini:UseGemini");
-
-        if (useGemini)
+        services.AddLogging(builder =>
         {
-            services.AddSingleton<AppAbstractions.IItemGenerator>(new GeminiItemGenerator(apiKey, modelName));
-        }
-        else
+            builder.AddConsole();
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
+
+        services.ConfigureAppServices(configuration);
+    }
+
+    private static void LoadEnvironmentVariables()
+    {
+        var envPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../.env");
+        if (File.Exists(envPath))
         {
-            services.AddSingleton<AppAbstractions.IItemGenerator, SimpleItemGenerator>();
+            foreach (var line in File.ReadAllLines(envPath))
+            {
+                var parts = line.Split('=', 2);
+                if (parts.Length == 2)
+                {
+                    Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim());
+                }
+            }
         }
-
-        services.AddSingleton<AppAbstractions.ILessonPlanGenerator>(new GeminiLessonPlanGenerator(apiKey, modelName));
-        services.AddSingleton<AppAbstractions.ILessonQuizEvaluator>(new GeminiLessonQuizEvaluator(apiKey, modelName));
-
-        services.AddSingleton<AppServices.LearningFlowService>();
-        services.AddSingleton<AppServices.AdaptiveTestService>();
-
-        services.AddSingleton<UploadViewModel>();
-        services.AddSingleton<LessonsViewModel>();
-        services.AddSingleton<AdaptiveSessionViewModel>();
-        services.AddSingleton<DebugViewModel>();
-        services.AddSingleton<MainViewModel>();
-        services.AddSingleton<MainWindow>();
     }
 
     protected override void OnStartup(StartupEventArgs e)

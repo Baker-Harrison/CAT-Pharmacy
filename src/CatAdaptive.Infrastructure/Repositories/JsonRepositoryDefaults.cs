@@ -7,7 +7,8 @@ internal static class JsonRepositoryDefaults
     public static readonly JsonSerializerOptions CamelCase = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
     };
 
     public static readonly JsonSerializerOptions DefaultCaseInsensitive = new()

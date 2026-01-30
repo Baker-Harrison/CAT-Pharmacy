@@ -10,6 +10,8 @@
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         <converters:NullToCollapsedConverter x:Key="NullToCollapsedConverter"/>
         <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter"/>
+        <converters:ZeroToCollapsedConverter x:Key="ZeroToCollapsedConverter"/>
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
         
         <Style x:Key="NavButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>

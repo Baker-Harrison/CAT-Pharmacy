@@ -11,7 +11,6 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
 {
     private readonly Client _client;
     private readonly string _modelName;
-    private const string LogFile = "gemini_debug.log";
 
     public GeminiLessonPlanGenerator(string? apiKey = null, string modelName = "gemini-2.0-flash-exp")
     {
@@ -19,19 +18,6 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
             ? new Client()
             : new Client(apiKey: apiKey);
         _modelName = modelName;
-    }
-
-    private void LogDebug(string message)
-    {
-        try
-        {
-            var logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}{new string('-', 80)}{Environment.NewLine}";
-            File.AppendAllText(LogFile, logEntry);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Failed to write to debug log: {ex.Message}");
-        }
     }
 
     public Task<IReadOnlyList<LessonPlan>> GenerateInitialLessonsAsync(
@@ -70,9 +56,9 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         Guid? focusConceptId,
         CancellationToken ct)
     {
-        LogDebug($"Generating Lessons. Prompt Length: {prompt.Length} chars. Prompt Preview:\n{prompt.Substring(0, Math.Min(prompt.Length, 500))}...");
-        
+        Console.WriteLine($"DEBUG: Generating Lessons. Prompt Length: {prompt.Length} chars.");
         Console.WriteLine("DEBUG: Sending prompt to Gemini...");
+        
         var response = await _client.Models.GenerateContentAsync(
             model: _modelName,
             contents: prompt);
@@ -80,13 +66,11 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         var responseText = response.Candidates?[0]?.Content?.Parts?[0]?.Text;
         if (string.IsNullOrWhiteSpace(responseText))
         {
-            LogDebug("Received EMPTY response from Gemini.");
             Console.WriteLine("DEBUG: Received empty response from Gemini.");
             return Array.Empty<LessonPlan>();
         }
 
-        LogDebug($"Raw Gemini Response:\n{responseText}");
-        Console.WriteLine($"DEBUG: Raw Response: {responseText[..Math.Min(responseText.Length, 500)]}...");
+        Console.WriteLine($"DEBUG: Raw Response Length: {responseText.Length}");
 
         var lessonDtos = ParseLessonPlans(responseText);
         Console.WriteLine($"DEBUG: Parsed {lessonDtos.Count} lesson DTOs.");
@@ -102,13 +86,10 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
             }
             else
             {
-                var msg = $"Failed to map lesson DTO for concept: {dto.ConceptId}";
-                LogDebug(msg);
-                Console.WriteLine($"DEBUG: {msg}");
+                Console.WriteLine($"DEBUG: Failed to map lesson DTO for concept: {dto.ConceptId}");
             }
         }
 
-        LogDebug($"Successfully mapped {lessons.Count} lessons.");
         Console.WriteLine($"DEBUG: Successfully mapped {lessons.Count} lessons.");
         return lessons;
     }
@@ -122,7 +103,6 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         var conceptId = FindConceptId(dto.ConceptId, contentGraph, focusConceptId);
         if (conceptId == null)
         {
-            LogDebug($"Could not resolve Concept ID for '{dto.ConceptId}'.");
             Console.WriteLine($"DEBUG: Could not resolve Concept ID for '{dto.ConceptId}'.");
             return null;
         }
@@ -130,7 +110,6 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         var conceptNode = contentGraph.GetNode(conceptId.Value);
         if (conceptNode == null)
         {
-            LogDebug($"Concept node not found in graph for ID: {conceptId.Value}");
             Console.WriteLine($"DEBUG: Concept node not found in graph for ID: {conceptId.Value}");
             return null;
         }
@@ -149,7 +128,8 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
             sections.Add(new LessonSection(
                 "Overview",
                 summary,
-                Array.Empty<LessonPrompt>()));
+                Array.Empty<LessonPrompt>(),
+                Guid.NewGuid()));
         }
 
         var quiz = MapQuiz(dto.Quiz, conceptId.Value);
@@ -204,7 +184,8 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         return new LessonSection(
             dto.Heading?.Trim() ?? "Lesson",
             dto.Body?.Trim() ?? string.Empty,
-            prompts);
+            prompts,
+            Guid.NewGuid()); // Generate a unique ID for each section
     }
 
     private static LessonQuiz MapQuiz(LessonQuizDto? dto, Guid conceptId)
@@ -279,13 +260,9 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         var jsonText = ExtractJson(responseText);
         if (string.IsNullOrWhiteSpace(jsonText))
         {
-            LogDebug("ExtractJson returned empty string. Code block parsing might have failed.");
-            Console.WriteLine("DEBUG: ExtractJson returned empty string.");
+            Console.WriteLine("DEBUG: ExtractJson returned empty string. Code block parsing might have failed.");
             return Array.Empty<LessonPlanDto>();
         }
-
-        LogDebug($"Extracted JSON for parsing:\n{jsonText}");
-        Console.WriteLine($"DEBUG: Extracted JSON (first 100 chars): {jsonText.Substring(0, Math.Min(jsonText.Length, 100))}...");
 
         try
         {
@@ -300,15 +277,13 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         }
         catch (JsonException ex)
         {
-            var msg = $"JSON Deserialization failed: {ex.Message}\nPath: {ex.Path} | LineNumber: {ex.LineNumber} | BytePositionInLine: {ex.BytePositionInLine}";
-            LogDebug(msg);
-            Console.WriteLine($"DEBUG: {msg}");
+            Console.WriteLine($"DEBUG: JSON Deserialization failed: {ex.Message}");
+            Console.WriteLine($"DEBUG: Path: {ex.Path} | LineNumber: {ex.LineNumber} | BytePositionInLine: {ex.BytePositionInLine}");
             return Array.Empty<LessonPlanDto>();
         }
         catch (Exception ex)
         {
-            LogDebug($"Unexpected error during JSON parsing: {ex}");
-            Console.WriteLine($"DEBUG: Unexpected error during JSON parsing: {ex}");
+            Console.WriteLine($"DEBUG: Unexpected error during JSON parsing: {ex.Message}");
             return Array.Empty<LessonPlanDto>();
         }
     }

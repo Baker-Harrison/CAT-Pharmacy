@@ -90,9 +90,8 @@ public sealed class KnowledgeGraph
     /// Applies decay to all concepts based on time since last attempt.
     /// Call this periodically (e.g., at session start).
     /// </summary>
-    public void ApplyDecay(TimeSpan decayWindow)
+    public void ApplyDecay(TimeSpan decayWindow, DateTimeOffset now)
     {
-        var now = DateTimeOffset.UtcNow;
         var updates = new List<(Guid, ConceptMastery)>();
 
         foreach (var (conceptId, mastery) in _masteryByConceptId)

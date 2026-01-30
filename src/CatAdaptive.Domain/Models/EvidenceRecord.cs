@@ -57,7 +57,8 @@ public sealed record EvidenceRecord
         int latencyMs,
         PromptFormat promptFormat,
         ErrorType errorType = ErrorType.None,
-        double? confidenceSelfReport = null)
+        double? confidenceSelfReport = null,
+        DateTimeOffset? timestamp = null)
     {
         return new EvidenceRecord
         {
@@ -74,7 +75,7 @@ public sealed record EvidenceRecord
             ConfidenceSelfReport = confidenceSelfReport.HasValue 
                 ? Math.Clamp(confidenceSelfReport.Value, 0.0, 1.0) 
                 : null,
-            Timestamp = DateTimeOffset.UtcNow
+            Timestamp = timestamp ?? DateTimeOffset.UtcNow
         };
     }
 
