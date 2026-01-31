@@ -17,6 +17,9 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<Notification> Notifications { get; } = new();
 
+    [ObservableProperty]
+    private string _currentNavigation = "Upload"; // Default to Upload
+
     private readonly UploadViewModel _uploadViewModel;
     private readonly LessonsViewModel _lessonsViewModel;
     private readonly AdaptiveSessionViewModel _adaptiveSessionViewModel;
@@ -45,6 +48,12 @@ public partial class MainViewModel : ObservableObject
         beforeNavigate?.Invoke();
         CurrentView = viewModel;
         CurrentPage = pageTitle;
+
+        // Update current navigation state
+        if (viewModel is UploadViewModel) CurrentNavigation = "Upload";
+        else if (viewModel is LessonsViewModel) CurrentNavigation = "Lessons";
+        else if (viewModel is AdaptiveSessionViewModel) CurrentNavigation = "Cat";
+        else if (viewModel is DebugViewModel) CurrentNavigation = "Debug";
     }
 
     [RelayCommand]

@@ -57,25 +57,29 @@
                     
                     <Button Content="📤  Upload Content" 
                             Command="{Binding NavigateToUploadCommand}"
-                            Style="{StaticResource NavButtonStyle}"/>
-                    
+                            Style="{StaticResource NavButtonStyle}"
+                            Tag="Upload"/> <!-- Added Tag -->
+
                     <Button Content="📘  Lessons" 
                             Command="{Binding NavigateToLessonsCommand}"
-                            Style="{StaticResource NavButtonStyle}"/>
+                            Style="{StaticResource NavButtonStyle}"
+                            Tag="Lessons"/> <!-- Added Tag -->
                     
                     <TextBlock Text="ASSESS" FontSize="10" FontWeight="SemiBold" 
                                Foreground="#64748B" Margin="20,25,20,8"/>
                     
                     <Button Content="🎯  CAT" 
                             Command="{Binding NavigateToCatCommand}"
-                            Style="{StaticResource NavButtonStyle}"/>
+                            Style="{StaticResource NavButtonStyle}"
+                            Tag="Cat"/> <!-- Added Tag -->
                             
                     <TextBlock Text="SYSTEM" FontSize="10" FontWeight="SemiBold" 
                                Foreground="#64748B" Margin="20,25,20,8"/>
                     
-                    <Button Content="🔧  Debug" 
+                    <Button Content="🔧  Debug"
                             Command="{Binding NavigateToDebugCommand}"
-                            Style="{StaticResource NavButtonStyle}"/>
+                            Style="{StaticResource NavButtonStyle}"
+                            Tag="Debug"/> <!-- Added Tag -->
                 </StackPanel>
 
                 
