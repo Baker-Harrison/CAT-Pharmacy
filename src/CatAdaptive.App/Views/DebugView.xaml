@@ -1,58 +1,141 @@
 <UserControl x:Class="CatAdaptive.App.Views.DebugView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:CatAdaptive.App.Views"
-             xmlns:vm="clr-namespace:CatAdaptive.App.ViewModels"
-             mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Grid Margin="40">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel MaxWidth="800" HorizontalAlignment="Left">
-                <Grid Margin="0,0,0,20">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    
-                    <TextBlock Text="System Debug" FontSize="28" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center"/>
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="800" d:DesignWidth="1200">
+    <Grid Margin="48" Background="{StaticResource BackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-                    <Button Grid.Column="1" 
-                            Content="Refresh Data" 
-                            Command="{Binding RefreshCommand}"
-                            Padding="15,10"
-                            Background="#2563EB"
-                            Foreground="White"
-                            BorderThickness="0"
-                            AutomationProperties.Name="Refresh debug data"/>
-                </Grid>
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,32">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="System Debug"
+                          Style="{StaticResource PageTitleStyle}"
+                          VerticalAlignment="Center"/>
+                <TextBlock Text="View system status and diagnostic information"
+                          Style="{StaticResource PageSubtitleStyle}"/>
+            </StackPanel>
+
+            <Button Grid.Column="1"
+                    Content="🔄 Refresh"
+                    Command="{Binding RefreshCommand}"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    AutomationProperties.Name="Refresh debug data"/>
+        </Grid>
+
+        <!-- Content Grid -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
                 <!-- System Info -->
-                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,16,16">
                     <StackPanel>
-                        <TextBlock Text="System Configuration" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBlock Text="{Binding SystemInfo}" FontFamily="Consolas" Foreground="#334155" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <Border Width="40" Height="40"
+                                    Background="{StaticResource PrimaryLightBrush}"
+                                    CornerRadius="10"
+                                    Margin="0,0,12,0">
+                                <TextBlock Text="⚙️" FontSize="20"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="System Configuration"
+                                      FontSize="18"
+                                      FontWeight="SemiBold"
+                                      Foreground="{StaticResource TextPrimaryBrush}"
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Border Background="{StaticResource BackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="16">
+                            <TextBlock Text="{Binding SystemInfo}"
+                                      FontFamily="Consolas"
+                                      Foreground="{StaticResource TextSecondaryBrush}"
+                                      TextWrapping="Wrap"
+                                      FontSize="13"
+                                      LineHeight="24"/>
+                        </Border>
                     </StackPanel>
                 </Border>
 
                 <!-- Repository Stats -->
-                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource CardStyle}" Margin="16,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="Data Repository Status" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBlock Text="{Binding RepositoryStats}" FontFamily="Consolas" Foreground="#334155" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <Border Width="40" Height="40"
+                                    Background="{StaticResource SuccessBackgroundBrush}"
+                                    CornerRadius="10"
+                                    Margin="0,0,12,0">
+                                <TextBlock Text="💾" FontSize="20"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="Data Repository Status"
+                                      FontSize="18"
+                                      FontWeight="SemiBold"
+                                      Foreground="{StaticResource TextPrimaryBrush}"
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Border Background="{StaticResource BackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="16">
+                            <TextBlock Text="{Binding RepositoryStats}"
+                                      FontFamily="Consolas"
+                                      Foreground="{StaticResource TextSecondaryBrush}"
+                                      TextWrapping="Wrap"
+                                      FontSize="13"
+                                      LineHeight="24"/>
+                        </Border>
                     </StackPanel>
                 </Border>
 
                 <!-- Current Session -->
-                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20">
+                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource CardStyle}">
                     <StackPanel>
-                        <TextBlock Text="Current Session Context" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBlock Text="{Binding CurrentSessionDetails}" FontFamily="Consolas" Foreground="#334155" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <Border Width="40" Height="40"
+                                    Background="{StaticResource InfoBackgroundBrush}"
+                                    CornerRadius="10"
+                                    Margin="0,0,12,0">
+                                <TextBlock Text="👤" FontSize="20"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="Current Session Context"
+                                      FontSize="18"
+                                      FontWeight="SemiBold"
+                                      Foreground="{StaticResource TextPrimaryBrush}"
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Border Background="{StaticResource BackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="16">
+                            <TextBlock Text="{Binding CurrentSessionDetails}"
+                                      FontFamily="Consolas"
+                                      Foreground="{StaticResource TextSecondaryBrush}"
+                                      TextWrapping="Wrap"
+                                      FontSize="13"
+                                      LineHeight="24"/>
+                        </Border>
                     </StackPanel>
                 </Border>
-
-            </StackPanel>
-        </ScrollViewer>
+            </Grid>
     </Grid>
 </UserControl>

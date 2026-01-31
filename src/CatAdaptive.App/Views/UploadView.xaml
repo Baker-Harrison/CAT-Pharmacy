@@ -4,81 +4,232 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Grid Margin="40">
-        <StackPanel MaxWidth="600" VerticalAlignment="Center" 
-                    Visibility="{Binding IsProcessing, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-            <TextBlock Text="Upload Content" FontSize="28" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,10"/>
-            <TextBlock Text="Upload a PowerPoint file to generate content" FontSize="14" Foreground="#64748B" Margin="0,0,0,30"/>
+             d:DesignHeight="800" d:DesignWidth="1000">
+    <UserControl.Resources>
+        <Style x:Key="DropZoneStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="48"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                    <Setter Property="Background" Value="#EFF6FF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
 
-            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="2" CornerRadius="12" Padding="30">
-                <StackPanel>
-                    <TextBlock Text="Select File" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                    
+    <Grid Margin="48">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,32">
+            <TextBlock Text="Upload Content" Style="{StaticResource PageTitleStyle}"/>
+            <TextBlock Text="Upload PowerPoint files to create personalized learning content"
+                      Style="{StaticResource PageSubtitleStyle}"/>
+        </StackPanel>
+
+        <!-- Main Content -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="400"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: Upload Area -->
+            <StackPanel Grid.Column="0" Margin="0,0,48,0">
+                <!-- Drop Zone -->
+                <Border Style="{StaticResource DropZoneStyle}"
+                        AllowDrop="True"
+                        Drop="OnFileDrop"
+                        DragOver="OnFileDragOver">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="80" Height="80"
+                                Background="{StaticResource PrimaryLightBrush}"
+                                CornerRadius="20"
+                                Margin="0,0,0,24">
+                            <Path Data="M9,16V10H7L12,3L17,10H15V16M12,5.8L10.2,8H13.8M12,14A4,4 0 0,1 8,10A4,4 0 0,1 12,6A4,4 0 0,1 16,10A4,4 0 0,1 12,14Z"
+                                  Fill="{StaticResource PrimaryBrush}"
+                                  Width="40" Height="40"
+                                  Stretch="Uniform"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Drop files here or click to browse"
+                                  FontSize="18"
+                                  FontWeight="SemiBold"
+                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                  TextAlignment="Center"
+                                  Margin="0,0,0,8"/>
+                        <TextBlock Text="Supported: .pptx files"
+                                  FontSize="14"
+                                  Foreground="{StaticResource TextSecondaryBrush}"
+                                  TextAlignment="Center"
+                                  Margin="0,0,0,24"/>
+                        <Button Content="Browse Files"
+                               Command="{Binding BrowseFileCommand}"
+                               Style="{StaticResource SecondaryButtonStyle}"
+                               HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Selected File Card -->
+                <Border Style="{StaticResource CardStyle}"
+                        Margin="0,24,0,0"
+                        Visibility="{Binding SelectedFilePath, Converter={StaticResource NullToCollapsedConverter}}">
                     <Grid>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        
-                        <TextBox Text="{Binding SelectedFilePath, Mode=TwoWay}" 
-                                 IsReadOnly="True" 
-                                 Padding="10" 
-                                 Background="White"
-                                 BorderBrush="#CBD5E1"/>
-                        
-                        <Button Grid.Column="1" 
-                                Content="Browse" 
-                                Command="{Binding BrowseFileCommand}"
-                                Padding="15,10"
-                                Margin="10,0,0,0"
-                                Background="#2563EB"
-                                Foreground="White"
-                                BorderThickness="0"
-                                AutomationProperties.Name="Browse for PowerPoint file"/>
+
+                        <Border Grid.Column="0"
+                                Width="48" Height="48"
+                                Background="#FEF3C7"
+                                CornerRadius="10"
+                                Margin="0,0,16,0">
+                            <TextBlock Text="📄" FontSize="24"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SelectedFilePath, Converter={StaticResource FileNameConverter}}"
+                                      FontSize="14"
+                                      FontWeight="SemiBold"
+                                      Foreground="{StaticResource TextPrimaryBrush}"
+                                      TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="Ready to process"
+                                      FontSize="12"
+                                      Foreground="{StaticResource SuccessBrush}"
+                                      Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="2"
+                               Content="✕"
+                               Command="{Binding ClearFileCommand}"
+                               Background="Transparent"
+                               BorderThickness="0"
+                               Foreground="{StaticResource TextTertiaryBrush}"
+                               FontSize="16"
+                               Width="32" Height="32"
+                               Style="{StaticResource GhostButtonStyle}"/>
                     </Grid>
+                </Border>
 
-                    <Button Content="Process File" 
-                            Command="{Binding ProcessFileCommand}"
-                            IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBoolConverter}}"
-                            Padding="15,12"
-                            Margin="0,20,0,0"
-                            Background="#10B981"
-                            Foreground="White"
-                            FontWeight="SemiBold"
-                            BorderThickness="0"
-                            HorizontalAlignment="Stretch"
-                            AutomationProperties.Name="Process selected file"/>
-                </StackPanel>
-            </Border>
+                <!-- Process Button -->
+                <Button Content="Process Content"
+                       Command="{Binding ProcessFileCommand}"
+                       Style="{StaticResource ModernButtonStyle}"
+                       HorizontalAlignment="Stretch"
+                       Margin="0,24,0,0"
+                       Visibility="{Binding SelectedFilePath, Converter={StaticResource NullToCollapsedConverter}}"/>
+            </StackPanel>
 
-            <Border Background="#F0FDF4" BorderBrush="#BBF7D0" BorderThickness="1" CornerRadius="8" 
-                    Padding="20" Margin="0,20,0,0"
-                    Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibilityConverter}}">
-                <StackPanel>
-                    <TextBlock Text="✓" FontSize="24" Foreground="#10B981" HorizontalAlignment="Center" Margin="0,0,0,10"
-                               Visibility="{Binding IsSuccess, Converter={StaticResource BoolToVisibilityConverter}}">
-                    </TextBlock>
-                    <TextBlock Text="{Binding StatusMessage}" FontWeight="Medium" TextWrapping="Wrap"/>
-                    
-                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0" 
-                                Visibility="{Binding ItemsGenerated, Converter={StaticResource ZeroToVisibilityConverter}}">
-                        <TextBlock Text="Knowledge Units: " Foreground="#64748B"/>
-                        <TextBlock Text="{Binding KnowledgeUnitsCreated}" FontWeight="SemiBold"/>
-                        <TextBlock Text="  |  Items Generated: " Foreground="#64748B" Margin="10,0,0,0"/>
-                        <TextBlock Text="{Binding ItemsGenerated}" FontWeight="SemiBold"/>
+            <!-- Right: Stats & Info -->
+            <StackPanel Grid.Column="1">
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,24">
+                    <StackPanel>
+                        <TextBlock Text="Processing Status"
+                                  FontSize="16"
+                                  FontWeight="SemiBold"
+                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                  Margin="0,0,0,16"/>
+
+                        <Grid Visibility="{Binding IsProcessing, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                            <TextBlock Text="Ready to upload"
+                                      FontSize="14"
+                                      Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </Grid>
+
+                        <StackPanel Visibility="{Binding IsProcessing, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ProgressBar IsIndeterminate="True"
+                                        Height="4"
+                                        Background="{StaticResource BorderLightBrush}"
+                                        Foreground="{StaticResource PrimaryBrush}"
+                                        Margin="0,0,0,12"/>
+                            <TextBlock Text="Processing your content..."
+                                      FontSize="14"
+                                      Foreground="{StaticResource TextSecondaryBrush}"
+                                      TextAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding IsSuccess, Converter={StaticResource BoolToVisibilityConverter}}"
+                                     Margin="0,16,0,0">
+                            <Border Background="{StaticResource SuccessBackgroundBrush}"
+                                   BorderBrush="{StaticResource SuccessBrush}"
+                                   BorderThickness="1"
+                                   CornerRadius="8"
+                                   Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="✓ Content processed successfully"
+                                              FontWeight="SemiBold"
+                                              Foreground="{StaticResource SuccessBrush}"
+                                              Margin="0,0,0,8"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <TextBlock Text="{Binding KnowledgeUnitsCreated}"
+                                                      FontWeight="Bold"
+                                                      Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Text=" units"
+                                                      Foreground="{StaticResource TextSecondaryBrush}"
+                                                      Margin="4,0,16,0"/>
+                                            <TextBlock Text="{Binding ItemsGenerated}"
+                                                      FontWeight="Bold"
+                                                      Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Text=" items"
+                                                      Foreground="{StaticResource TextSecondaryBrush}"
+                                                      Margin="4,0,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <Border Visibility="{Binding StatusMessage, Converter={StaticResource NullToCollapsedConverter}}"
+                               Background="{StaticResource ErrorBackgroundBrush}"
+                               BorderBrush="{StaticResource ErrorBrush}"
+                               BorderThickness="1"
+                               CornerRadius="8"
+                               Padding="12"
+                               Margin="0,16,0,0">
+                            <TextBlock Text="{Binding StatusMessage}"
+                                      Foreground="{StaticResource ErrorBrush}"/>
+                        </Border>
                     </StackPanel>
-                </StackPanel>
-            </Border>
-        </StackPanel>
+                </Border>
 
-        <!-- Skeleton Loader -->
-        <Grid Visibility="{Binding IsProcessing, Converter={StaticResource BoolToVisibilityConverter}}" Margin="40">
-            <StackPanel MaxWidth="600" VerticalAlignment="Center">
-                <Rectangle Fill="#E2E8F0" Height="30" Margin="0,0,0,20" RadiusX="4" RadiusY="4"/>
-                <Rectangle Fill="#E2E8F0" Height="20" Margin="0,0,0,10" RadiusX="4" RadiusY="4" Width="200"/>
-                <Rectangle Fill="#E2E8F0" Height="40" Margin="0,0,0,20" RadiusX="4" RadiusY="4"/>
-                <Rectangle Fill="#E2E8F0" Height="20" Margin="0,0,0,10" RadiusX="4" RadiusY="4" Width="300"/>
+                <!-- Tips Card -->
+                <Border Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="💡 Tips"
+                                  FontSize="16"
+                                  FontWeight="SemiBold"
+                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                  Margin="0,0,0,16"/>
+                        <TextBlock Text="• Use clear, structured slides for best results"
+                                  FontSize="14"
+                                  Foreground="{StaticResource TextSecondaryBrush}"
+                                  Margin="0,0,0,8"/>
+                        <TextBlock Text="• Include learning objectives on first slide"
+                                  FontSize="14"
+                                  Foreground="{StaticResource TextSecondaryBrush}"
+                                  Margin="0,0,0,8"/>
+                        <TextBlock Text="• Avoid scanned images - use native text"
+                                  FontSize="14"
+                                  Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </Grid>
     </Grid>

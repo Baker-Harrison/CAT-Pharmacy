@@ -4,446 +4,276 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             d:DesignHeight="600" d:DesignWidth="900">
+             d:DesignHeight="800" d:DesignWidth="1200">
     <UserControl.Resources>
-        <!-- Colors -->
-        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#1E293B"/>
-        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#64748B"/>
-        <SolidColorBrush x:Key="PrimaryBlueBrush" Color="#2563EB"/>
-        <SolidColorBrush x:Key="PrimaryBlueHoverBrush" Color="#1D4ED8"/>
-        <SolidColorBrush x:Key="SurfaceBrush" Color="White"/>
-        <SolidColorBrush x:Key="BackgroundBrush" Color="#F8FAFC"/>
-        <SolidColorBrush x:Key="BorderBrush" Color="#E2E8F0"/>
-        <SolidColorBrush x:Key="SuccessBrush" Color="#10B981"/>
-        <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FEFCE8"/>
-        <SolidColorBrush x:Key="WarningBorderBrush" Color="#FDE68A"/>
-        <SolidColorBrush x:Key="WarningTextBrush" Color="#92400E"/>
-        <SolidColorBrush x:Key="ErrorTextBrush" Color="#DC2626"/>
-
-        <!-- Typography -->
-        <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="28"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
-        </Style>
-
-        <Style x:Key="SubHeaderTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}"/>
-        </Style>
-
-        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="20"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
-            <Setter Property="Margin" Value="0,24,0,12"/>
-        </Style>
-
-        <!-- Components -->
-        <Style x:Key="CardStyle" TargetType="Border">
+        <Style x:Key="StatCardStyle" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="CornerRadius" Value="16"/>
             <Setter Property="Padding" Value="24"/>
-            <Setter Property="Margin" Value="0,0,0,16"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect Color="#000000" Opacity="0.03" BlurRadius="8" ShadowDepth="2" Direction="270"/>
-                </Setter.Value>
-            </Setter>
         </Style>
-
-        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource PrimaryBlueBrush}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="16,10"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{StaticResource PrimaryBlueHoverBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.6"/>
-                                <Setter Property="Cursor" Value="No"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="OutlineButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource PrimaryBlueBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBlueBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#EFF6FF"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="ModernProgressBar" TargetType="ProgressBar">
-            <Setter Property="Height" Value="10"/>
-            <Setter Property="Background" Value="#F1F5F9"/>
-            <Setter Property="Foreground" Value="{StaticResource PrimaryBlueBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ProgressBar">
-                        <Grid>
-                            <Border Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="5"/>
-                            <Border Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="5"/>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="InputTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Padding" Value="12"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="#F8FAFC"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="{TemplateBinding BorderThickness}" 
-                                CornerRadius="6">
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource PrimaryBlueBrush}"/>
-                                <Setter TargetName="border" Property="Background" Value="White"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SectionContainerStyle" TargetType="Border">
-            <Setter Property="Margin" Value="0,0,0,32"/>
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#E2E8F0"/>
-            <Setter Property="BorderThickness" Value="0,0,0,2"/>
-            <Setter Property="Padding" Value="0,0,0,16"/>
-        </Style>
-
-        <Style x:Key="SectionHeaderContainerStyle" TargetType="Grid">
-            <Setter Property="Margin" Value="0,0,0,12"/>
-        </Style>
-
-        <Style x:Key="SectionProgressIndicatorStyle" TargetType="Border">
-            <Setter Property="Background" Value="#F1F5F9"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-
-        <Style x:Key="ViewTransitionStyle" TargetType="FrameworkElement">
-            <Setter Property="RenderTransform">
-                <Setter.Value>
-                    <TranslateTransform/>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="Visibility" Value="Visible">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.4"/>
-                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)" From="20" To="0" Duration="0:0:0.4">
-                                    <DoubleAnimation.EasingFunction>
-                                        <QuadraticEase EasingMode="EaseOut"/>
-                                    </DoubleAnimation.EasingFunction>
-                                </DoubleAnimation>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
     </UserControl.Resources>
 
-    <Grid Margin="32">
-        <!-- Lesson List View -->
-        <StackPanel Visibility="{Binding SelectedLesson, Converter={StaticResource NullToCollapsedConverter}}">
-            <StackPanel Margin="0,0,0,32">
-                <TextBlock Text="My Lessons" Style="{StaticResource HeaderTextStyle}" Margin="0,0,0,8"/>
-                <TextBlock Text="Generate new lessons from uploaded content." Style="{StaticResource SubHeaderTextStyle}"/>
-            </StackPanel>
+    <Grid Margin="48">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <!-- Status Message -->
-            <Border Background="#F0F9FF" BorderBrush="#BAE6FD" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,24"
-                    Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibilityConverter}}">
-                <TextBlock Text="{Binding StatusMessage}" Foreground="#0369A1" TextWrapping="Wrap"/>
-            </Border>
-
-            <Border Background="{StaticResource WarningBackgroundBrush}" 
-                    BorderBrush="{StaticResource WarningBorderBrush}" 
-                    BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,24"
-                    Visibility="{Binding IsGeneratingLessons, Converter={StaticResource BoolToVisibilityConverter}}">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="⟳" FontSize="16" FontWeight="Bold" Foreground="{StaticResource WarningTextBrush}" Margin="0,0,8,0"/>
-                    <TextBlock Text="Generating new personalized lessons..." FontWeight="SemiBold" Foreground="{StaticResource WarningTextBrush}"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Main Content Area with States -->
-            <Grid>
-                <!-- Loading State -->
-                <StackPanel Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"
-                            HorizontalAlignment="Center" Margin="0,40,0,0">
-                    <TextBlock Text="⟳" FontSize="32" Foreground="{StaticResource PrimaryBlueBrush}" 
-                               HorizontalAlignment="Center" Margin="0,0,0,16" RenderTransformOrigin="0.5,0.5">
-                        <TextBlock.RenderTransform>
-                            <RotateTransform x:Name="SpinnerTransform"/>
-                        </TextBlock.RenderTransform>
-                        <TextBlock.Triggers>
-                            <EventTrigger RoutedEvent="Loaded">
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="SpinnerTransform" 
-                                                         Storyboard.TargetProperty="Angle" 
-                                                         From="0" To="360" Duration="0:0:1" RepeatBehavior="Forever"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </EventTrigger>
-                        </TextBlock.Triggers>
-                    </TextBlock>
-                    <TextBlock Text="Loading your learning plan..." FontSize="16" Foreground="{StaticResource SecondaryTextBrush}"/>
-                </StackPanel>
-
-                <!-- Content (Not Loading) -->
-                <Grid Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                    
-                    <!-- Empty State -->
-                    <StackPanel Visibility="{Binding Lessons.Count, Converter={StaticResource ZeroToCollapsedConverter}}"
-                                HorizontalAlignment="Center" Margin="0,40,0,0">
-                        <TextBlock Text="📚" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,24"/>
-                        <TextBlock Text="No lessons available yet" FontSize="20" FontWeight="SemiBold" 
-                                   Foreground="{StaticResource PrimaryTextBrush}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                        <TextBlock Text="Upload content first, then click 'Generate Lessons' to create personalized lessons." 
-                                   FontSize="16" Foreground="{StaticResource SecondaryTextBrush}" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="400"/>
-                        
-                        <!-- Generate Lessons Button -->
-                        <Button Margin="0,24,0,12"
-                                Command="{Binding GenerateLessonsCommand}" HorizontalAlignment="Center"
-                                IsEnabled="{Binding IsGeneratingLessons, Converter={StaticResource InverseBoolConverter}}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
-                                    <Setter Property="Content" Value="Generate Lessons"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsGeneratingLessons}" Value="True">
-                                            <Setter Property="Content" Value="Generating..."/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                        
-                        <Button Content="Refresh Lessons" Style="{StaticResource OutlineButtonStyle}"
-                                Command="{Binding LoadLessonsCommand}" HorizontalAlignment="Center"/>
-                    </StackPanel>
-
-                    <!-- Lesson List -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                  Visibility="{Binding Lessons.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
-                        <ItemsControl ItemsSource="{Binding Lessons}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Style="{StaticResource CardStyle}">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            
-                                            <StackPanel Grid.Column="0" Margin="0,0,24,0">
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                                                    <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource PrimaryTextBrush}"/>
-                                                    <Border Background="#FEE2E2" CornerRadius="4" Padding="8,2" Margin="12,0,0,0"
-                                                            Visibility="{Binding IsRemediation, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                        <TextBlock Text="Remediation" FontSize="11" FontWeight="Bold" Foreground="#DC2626"/>
-                                                    </Border>
-                                                </StackPanel>
-
-                                                <TextBlock Text="{Binding Summary}" Foreground="{StaticResource SecondaryTextBrush}" 
-                                                           TextWrapping="Wrap" Margin="0,0,0,16" LineHeight="20"/>
-
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="Progress" Foreground="{StaticResource SecondaryTextBrush}" FontSize="13" FontWeight="Medium" Margin="0,0,12,0"/>
-                                                    <ProgressBar Style="{StaticResource ModernProgressBar}" Width="200" Maximum="100" Value="{Binding ProgressPercent}"/>
-                                                    <TextBlock Text="{Binding LastScorePercent, StringFormat=Score: {0:0}%, TargetNullValue=Score: --}" 
-                                                               Foreground="{StaticResource PrimaryTextBrush}" FontSize="13" FontWeight="SemiBold" Margin="16,0,0,0"/>
-                                                </StackPanel>
-                                            </StackPanel>
-
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <Button Content="Open Lesson" Style="{StaticResource PrimaryButtonStyle}"
-                                                        Command="{Binding DataContext.OpenLessonCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </Grid>
-            </Grid>
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,32">
+            <TextBlock Text="My Learning" Style="{StaticResource PageTitleStyle}"/>
+            <TextBlock Text="Track your progress and continue your personalized learning journey"
+                      Style="{StaticResource PageSubtitleStyle}"/>
         </StackPanel>
 
-        <!-- Lesson Detail View -->
-        <ScrollViewer Visibility="{Binding SelectedLesson, Converter={StaticResource NullToVisibilityConverter}}"
-                      HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
-                      Style="{StaticResource ViewTransitionStyle}">
-            <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-                <Button Command="{Binding BackToListCommand}" 
-                        Background="Transparent" BorderThickness="0" 
-                        HorizontalAlignment="Left" Margin="-8,0,0,24" Cursor="Hand">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="←" FontSize="18" Foreground="{StaticResource PrimaryBlueBrush}" Margin="0,0,8,0"/>
-                        <TextBlock Text="Back to Lessons" FontSize="16" Foreground="{StaticResource PrimaryBlueBrush}" FontWeight="SemiBold"/>
+        <!-- Stats Row -->
+        <Grid Grid.Row="1" Margin="0,0,0,32">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="24"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="24"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Completed Card -->
+            <Border Grid.Column="0" Style="{StaticResource StatCardStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding CompletedLessonsCount}"
+                                  FontSize="48"
+                                  FontWeight="Bold"
+                                  Foreground="{StaticResource PrimaryBrush}"/>
+                        <TextBlock Text="Completed"
+                                  FontSize="14"
+                                  Foreground="{StaticResource TextSecondaryBrush}"/>
                     </StackPanel>
-                </Button>
+                    <Border Grid.Column="0"
+                            Width="56" Height="56"
+                            Background="{StaticResource PrimaryLightBrush}"
+                            CornerRadius="12"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="✓" FontSize="28" Foreground="{StaticResource PrimaryBrush}"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+                    </Border>
+                </Grid>
+            </Border>
 
-                <TextBlock Text="{Binding SelectedLesson.Title}" Style="{StaticResource HeaderTextStyle}" Margin="0,0,0,12"/>
-                <TextBlock Text="{Binding SelectedLesson.Summary}" FontSize="16" Foreground="{StaticResource SecondaryTextBrush}" 
-                           TextWrapping="Wrap" Margin="0,0,0,32" LineHeight="24"/>
+            <!-- Average Score Card -->
+            <Border Grid.Column="2" Style="{StaticResource StatCardStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding AverageScore, StringFormat='{}{0:F0}%%'}"
+                                  FontSize="48"
+                                  FontWeight="Bold"
+                                  Foreground="{StaticResource SecondaryBrush}"/>
+                        <TextBlock Text="Avg Score"
+                                  FontSize="14"
+                                  Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                    <Border Grid.Column="0"
+                            Width="56" Height="56"
+                            Background="#CCFBF1"
+                            CornerRadius="12"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="📊" FontSize="28"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+                    </Border>
+                </Grid>
+            </Border>
 
-                <!-- Content Sections -->
-                <ItemsControl ItemsSource="{Binding SelectedLesson.Sections}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource SectionContainerStyle}" Tag="{Binding}">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
-                                    
-                                    <!-- Section Header with Progress -->
-                                    <Grid Style="{StaticResource SectionHeaderContainerStyle}" Grid.Row="0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        
-                                        <TextBlock Text="{Binding Heading}" Style="{StaticResource SectionHeaderStyle}" Grid.Column="0"/>
-                                        
-                                        <StackPanel Orientation="Horizontal" Grid.Column="1">
-                                            <Border Style="{StaticResource SectionProgressIndicatorStyle}">
-                                                <TextBlock Text="✓" FontSize="12" Foreground="#10B981" FontWeight="Bold" 
-                                                          Visibility="{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=DataContext.SelectedLesson.SectionProgresses[{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=ItemsSource.IndexOf({Binding})}].IsRead, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                            </Border>
-                                            <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=DataContext.SelectedLesson.SectionProgresses[{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=ItemsSource.IndexOf({Binding})}].ReadPercent, StringFormat={}{0:F0}%}" 
-                                                      FontSize="12" FontWeight="SemiBold" 
-                                                      Foreground="{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=DataContext.SelectedLesson.SectionProgresses[{Binding RelativeSource={RelativeSource AncestorType=ItemsControl}, Path=ItemsSource.IndexOf({Binding})}].IsRead, Converter={StaticResource BoolToColorConverter}}"/>
-                                        </StackPanel>
-                                    </Grid>
-                                    
-                                    <!-- Section Content -->
-                                    <StackPanel Grid.Row="1">
-                                        <TextBlock Text="{Binding Body}" TextWrapping="Wrap" Foreground="#334155" 
-                                                   FontSize="16" LineHeight="26" Margin="0,0,0,16"/>
-                                        
-                                        <ItemsControl ItemsSource="{Binding Prompts}" Margin="0,8,0,0">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Background="#F1F5F9" BorderBrush="{StaticResource BorderBrush}" 
-                                                            BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="Auto"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Text="💡" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top"/>
-                                                            <TextBlock Grid.Column="1" Text="{Binding Prompt}" TextWrapping="Wrap" 
-                                                                       Foreground="{StaticResource PrimaryTextBrush}" FontSize="15" FontStyle="Italic"/>
-                                                        </Grid>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+            <!-- Status Card -->
+            <Border Grid.Column="4" Style="{StaticResource StatCardStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding HasContent, Converter={StaticResource BoolToActiveConverter}}"
+                                  FontSize="14"
+                                  FontWeight="SemiBold"
+                                  Foreground="{StaticResource SuccessBrush}"/>
+                        <TextBlock Text="Status"
+                                  FontSize="14"
+                                  Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                    <Border Grid.Column="0"
+                            Width="56" Height="56"
+                            Background="{StaticResource SuccessBackgroundBrush}"
+                            CornerRadius="12"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="🎯" FontSize="28"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
 
-                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,16,0,32"/>
+        <!-- Main Content -->
+        <Grid Grid.Row="2">
+            <Grid Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"
+                  VerticalAlignment="Center">
+                <StackPanel HorizontalAlignment="Center">
+                    <Border Width="64" Height="64"
+                            Background="{StaticResource PrimaryLightBrush}"
+                            CornerRadius="16"
+                            Margin="0,0,0,24">
+                        <TextBlock Text="⟳" FontSize="32" Foreground="{StaticResource PrimaryBrush}"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center">
+                            <TextBlock.RenderTransform>
+                                <RotateTransform x:Name="Spinner"/>
+                            </TextBlock.RenderTransform>
+                            <TextBlock.Triggers>
+                                <EventTrigger RoutedEvent="Loaded">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Spinner"
+                                                           Storyboard.TargetProperty="Angle"
+                                                           From="0" To="360" Duration="0:0:1" RepeatBehavior="Forever"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                            </TextBlock.Triggers>
+                        </TextBlock>
+                    </Border>
+                    <TextBlock Text="Loading your progress..."
+                              FontSize="18"
+                              Foreground="{StaticResource TextSecondaryBrush}"/>
+                </StackPanel>
+            </Grid>
 
-                <TextBlock Text="Knowledge Check" Style="{StaticResource SectionHeaderStyle}"/>
+            <Grid Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                <ItemsControl ItemsSource="{Binding QuizQuestions}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource CardStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding TypeDisplay}" FontSize="12" FontWeight="Bold" 
-                                               Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,8"/>
-                                    
-                                    <TextBlock Text="{Binding Question.Prompt}" TextWrapping="Wrap" 
-                                               Foreground="{StaticResource PrimaryTextBrush}" FontSize="16" FontWeight="Medium" Margin="0,0,0,16"/>
-                                    
-                                    <TextBox Text="{Binding ResponseText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource InputTextBoxStyle}"
-                                             AcceptsReturn="True" MinHeight="100" TextWrapping="Wrap"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <Border Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,24"
-                        Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibilityConverter}}">
-                    <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource ErrorTextBrush}" TextWrapping="Wrap"/>
+                <!-- No Content State -->
+                <Border Grid.Row="0"
+                        Style="{StaticResource CardStyle}"
+                        Visibility="{Binding HasContent, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                        VerticalAlignment="Center"
+                        Margin="0,48">
+                    <StackPanel HorizontalAlignment="Center" MaxWidth="500">
+                        <Border Width="120" Height="120"
+                                Background="{StaticResource PrimaryLightBrush}"
+                                CornerRadius="24"
+                                Margin="0,0,0,24">
+                            <TextBlock Text="📚" FontSize="60"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="No Content Yet"
+                                  FontSize="24"
+                                  FontWeight="Bold"
+                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                  TextAlignment="Center"
+                                  Margin="0,0,0,8"/>
+                        <TextBlock Text="Upload PowerPoint files to create your personalized learning content"
+                                  FontSize="16"
+                                  Foreground="{StaticResource TextSecondaryBrush}"
+                                  TextAlignment="Center"
+                                  TextWrapping="Wrap"
+                                  Margin="0,0,0,24"/>
+                        <Button Content="Upload Content"
+                               Command="{Binding StartAdaptiveLessonCommand}"
+                               Style="{StaticResource ModernButtonStyle}"
+                               HorizontalAlignment="Center"/>
+                    </StackPanel>
                 </Border>
 
-                <Button Content="Submit Quiz &amp; Generate Next Steps" Command="{Binding SubmitQuizCommand}" 
-                        Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Left"
-                        FontSize="16" Padding="24,12"
-                        IsEnabled="{Binding IsSubmittingQuiz, Converter={StaticResource InverseBoolConverter}}"/>
-                
-                <TextBlock Text="Submitting your answers will help tailor future lessons to your needs." 
-                           FontSize="13" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,12,0,40"/>
-            </StackPanel>
-        </ScrollViewer>
+                <!-- Content Available -->
+                <Grid Grid.Row="0"
+                      Visibility="{Binding HasContent, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel>
+                        <TextBlock Text="Ready to Learn"
+                                  FontSize="20"
+                                  FontWeight="SemiBold"
+                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                  Margin="0,0,0,24"/>
+
+                        <!-- Start Button Card -->
+                        <Border Style="{StaticResource CardStyle}"
+                                Background="{StaticResource PrimaryBrush}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Start a Study Session"
+                                              FontSize="22"
+                                              FontWeight="Bold"
+                                              Foreground="White"
+                                              Margin="0,0,0,8"/>
+                                    <TextBlock Text="Continue your personalized learning journey with AI-adapted content"
+                                              FontSize="14"
+                                              Foreground="#C7D2FE"
+                                              TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                       Content="Start Learning →"
+                                       Command="{Binding StartAdaptiveLessonCommand}"
+                                       Background="White"
+                                       Foreground="{StaticResource PrimaryBrush}"
+                                       Padding="24,16"
+                                       BorderThickness="0"
+                                       FontWeight="SemiBold"
+                                       FontSize="14"
+                                       Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                               CornerRadius="10"
+                                                               Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Status Message -->
+                        <Border Visibility="{Binding StatusMessage, Converter={StaticResource NullToCollapsedConverter}}"
+                               Background="{StaticResource InfoBackgroundBrush}"
+                               BorderBrush="{StaticResource InfoBrush}"
+                               BorderThickness="1"
+                               CornerRadius="8"
+                               Padding="16"
+                               Margin="0,24,0,0">
+                            <TextBlock Text="{Binding StatusMessage}"
+                                      Foreground="{StaticResource InfoBrush}"
+                                      TextWrapping="Wrap"/>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Grid>
     </Grid>
 </UserControl>
