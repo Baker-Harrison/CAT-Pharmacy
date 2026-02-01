@@ -1,36 +1,24 @@
-using System.Text.Json;
 using CatAdaptive.Application.Abstractions;
 using CatAdaptive.Domain.Models;
-using Google.GenAI;
 
 namespace CatAdaptive.Infrastructure.Generation;
 
 public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
 {
-    private readonly Client _client;
-    private readonly string _modelName;
+    private const int DefaultLessonCount = 5;
+    private const int DefaultQuizQuestionCount = 5;
 
     public GeminiLessonPlanGenerator(string? apiKey = null, string modelName = "gemini-2.0-flash-exp")
     {
-        _client = string.IsNullOrWhiteSpace(apiKey)
-            ? new Client()
-            : new Client(apiKey: apiKey);
-        _modelName = modelName;
     }
 
     public async Task<IReadOnlyList<LessonPlan>> GenerateInitialLessonsAsync(
         AIEnhancedContentGraph contentGraph,
         CancellationToken ct = default)
     {
-        var lessons = new List<LessonPlan>();
-
-        var explanationNodes = contentGraph.GetNodesByType(ContentNodeType.Explanation).Take(5);
-
-        foreach (var node in explanationNodes)
-        {
-            var lesson = CreateLessonFromContentNode(node, isRemediation: false);
-            lessons.Add(lesson);
-        }
+        var lessons = SelectInitialNodes(contentGraph)
+            .Select(node => CreateLessonFromContentNode(node, null, isRemediation: false))
+            .ToList();
 
         return await Task.FromResult<IReadOnlyList<LessonPlan>>(lessons);
     }
@@ -41,18 +29,24 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         IReadOnlyList<Guid> existingConceptIds,
         CancellationToken ct = default)
     {
-        var lessons = new List<LessonPlan>();
-
         var uncoveredNodes = contentGraph.Nodes.Values
             .Where(n => n.Type == ContentNodeType.Explanation)
             .Where(n => !n.LinkedDomainNodes.Any(id => existingConceptIds.Contains(id)))
-            .Take(3);
+            .OrderBy(n => n.Difficulty)
+            .ThenByDescending(n => n.QualityScore)
+            .Take(DefaultLessonCount)
+            .ToList();
 
-        foreach (var node in uncoveredNodes)
+        if (uncoveredNodes.Count == 0)
         {
-            var lesson = CreateLessonFromContentNode(node, isRemediation: false);
-            lessons.Add(lesson);
+            uncoveredNodes = contentGraph.GetContentByQuality(DefaultLessonCount)
+                .Where(n => n.Type == ContentNodeType.Explanation)
+                .ToList();
         }
+
+        var lessons = uncoveredNodes
+            .Select(node => CreateLessonFromContentNode(node, knowledgeGraph, isRemediation: false))
+            .ToList();
 
         return await Task.FromResult<IReadOnlyList<LessonPlan>>(lessons);
     }
@@ -68,55 +62,183 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
 
         if (simplerContent != null)
         {
-            return await Task.FromResult(CreateLessonFromContentNode(simplerContent, isRemediation: true));
+            return await Task.FromResult(CreateLessonFromContentNode(simplerContent, knowledgeGraph, isRemediation: true));
         }
 
         var anyContent = contentGraph.GetContentForDomainNodes(new[] { conceptId })
             .FirstOrDefault();
 
-        if (anyContent != null)
-        {
-            return await Task.FromResult(CreateLessonFromContentNode(anyContent, isRemediation: true));
-        }
-
-        return null;
+        return anyContent != null
+            ? await Task.FromResult(CreateLessonFromContentNode(anyContent, knowledgeGraph, isRemediation: true))
+            : null;
     }
 
-    private LessonPlan CreateLessonFromContentNode(ContentNode node, bool isRemediation)
+    private static IReadOnlyList<ContentNode> SelectInitialNodes(AIEnhancedContentGraph contentGraph)
     {
-        var conceptId = node.LinkedDomainNodes.FirstOrDefault();
+        var explanationNodes = contentGraph.GetNodesByType(ContentNodeType.Explanation)
+            .OrderBy(n => n.Difficulty)
+            .ThenByDescending(n => n.QualityScore)
+            .Take(DefaultLessonCount)
+            .ToList();
 
-        var section = new LessonSection(
-            Heading: node.Title,
-            Body: node.Content,
-            Prompts: new List<LessonPrompt>
-            {
-                new("What are the key concepts covered in this section?", null)
-            },
-            Id: Guid.NewGuid());
+        return explanationNodes.Count > 0
+            ? explanationNodes
+            : contentGraph.GetContentByQuality(DefaultLessonCount)
+                .Where(n => n.Type == ContentNodeType.Explanation)
+                .ToList();
+    }
 
-        var rubric = EvaluationRubric.Create(
-            requiredPoints: new[] { "Key concept understanding" },
-            keyConcepts: node.Tags.ToList(),
-            minExplanationQuality: 0.7);
+    private static LessonPlan CreateLessonFromContentNode(
+        ContentNode node,
+        DomainKnowledgeGraph? domainGraph,
+        bool isRemediation)
+    {
+        var conceptId = ResolveConceptId(node, domainGraph);
+        var domainNode = domainGraph?.GetNode(conceptId);
 
-        var question = new LessonQuizQuestion(
-            Id: Guid.NewGuid(),
-            ConceptId: conceptId,
-            Type: LessonQuizQuestionType.OpenResponse,
-            Prompt: $"Explain the main concepts of {node.Title} in your own words.",
-            ExpectedAnswer: "A comprehensive explanation covering the key points.",
-            Rubric: rubric);
-
-        var quiz = new LessonQuiz(new[] { question });
+        var title = domainNode?.Title ?? node.Title;
+        var summary = Truncate(node.Content, 240);
+        var sections = BuildSections(node, title, isRemediation);
+        var quiz = BuildQuiz(node, conceptId, title);
 
         return LessonPlan.Create(
             conceptId: conceptId,
-            title: node.Title,
-            summary: node.Content.Length > 200 ? node.Content.Substring(0, 200) + "..." : node.Content,
+            title: title,
+            summary: summary,
             estimatedReadMinutes: node.EstimatedTimeMinutes,
             isRemediation: isRemediation,
-            sections: new[] { section },
+            sections: sections,
             quiz: quiz);
+    }
+
+    private static Guid ResolveConceptId(ContentNode node, DomainKnowledgeGraph? domainGraph)
+    {
+        var linked = node.LinkedDomainNodes.FirstOrDefault(id => domainGraph?.GetNode(id) != null);
+        if (linked != Guid.Empty)
+        {
+            return linked;
+        }
+
+        return node.LinkedDomainNodes.FirstOrDefault() != Guid.Empty
+            ? node.LinkedDomainNodes.First()
+            : node.Id;
+    }
+
+    private static IReadOnlyList<LessonSection> BuildSections(ContentNode node, string title, bool isRemediation)
+    {
+        var sections = new List<LessonSection>
+        {
+            new(
+                "Retrieval Warm-Up",
+                $"Before reading, retrieve what you already know about {title}.",
+                new List<LessonPrompt>
+                {
+                    new($"From memory, define {title} in one sentence.", null),
+                    new("List two related ideas you expect to see in this lesson.", null)
+                },
+                Guid.NewGuid())
+        };
+
+        var corePrompts = new List<LessonPrompt>
+        {
+            new($"Explain the core idea of {title} in your own words.", null),
+            new("Identify one misconception that could lead to a wrong answer and correct it.", null)
+        };
+
+        var tagPrompt = node.Tags.FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(tagPrompt))
+        {
+            corePrompts.Add(new LessonPrompt(
+                $"Connect the concept \"{tagPrompt}\" to {title} with a concrete example.",
+                null));
+        }
+
+        if (isRemediation)
+        {
+            corePrompts.Add(new LessonPrompt(
+                "Work through a simplified example step-by-step and explain each choice.",
+                null));
+        }
+
+        sections.Add(new LessonSection(
+            node.Title,
+            node.Content,
+            corePrompts,
+            Guid.NewGuid()));
+
+        sections.Add(new LessonSection(
+            "Active Recall and Spaced Review",
+            $"Use spaced repetition to strengthen your memory of {title}.",
+            new List<LessonPrompt>
+            {
+                new("Without notes, list three key points from this lesson.", null),
+                new("In 24 hours, write a short summary from memory and note any gaps.", null)
+            },
+            Guid.NewGuid()));
+
+        return sections;
+    }
+
+    private static LessonQuiz BuildQuiz(ContentNode node, Guid conceptId, string title)
+    {
+        var tags = node.Tags.Take(3).ToList();
+        var requiredPoints = tags.Count > 0
+            ? tags.Select(t => $"Include {t}")
+            : new[] { $"Describe the main idea of {title}" };
+
+        var rubric = EvaluationRubric.Create(
+            requiredPoints: requiredPoints,
+            keyConcepts: tags,
+            commonMisconceptions: Array.Empty<string>(),
+            minExplanationQuality: 0.7);
+
+        var questions = new List<LessonQuizQuestion>
+        {
+            new(
+                Guid.NewGuid(),
+                conceptId,
+                LessonQuizQuestionType.FillInBlank,
+                $"The core idea of {title} is _____.",
+                tags.FirstOrDefault() ?? title,
+                rubric),
+            new(
+                Guid.NewGuid(),
+                conceptId,
+                LessonQuizQuestionType.OpenResponse,
+                $"Explain {title} in your own words, including an example.",
+                tags.Count > 0 ? string.Join(", ", tags) : $"A clear explanation of {title}.",
+                rubric),
+            new(
+                Guid.NewGuid(),
+                conceptId,
+                LessonQuizQuestionType.OpenResponse,
+                $"What common mistake do learners make with {title}, and how do you avoid it?",
+                tags.Count > 0 ? $"Misconceptions about {string.Join(", ", tags)}." : "A corrected misconception.",
+                rubric)
+        };
+
+        if (questions.Count < DefaultQuizQuestionCount)
+        {
+            questions.Add(new LessonQuizQuestion(
+                Guid.NewGuid(),
+                conceptId,
+                LessonQuizQuestionType.OpenResponse,
+                $"Apply {title} to a new scenario or problem.",
+                "A correct application that uses the lesson concepts.",
+                rubric));
+        }
+
+        return new LessonQuiz(questions);
+    }
+
+    private static string Truncate(string text, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = text.Trim().Replace("\n", " ").Replace("\r", " ");
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength] + "...";
     }
 }

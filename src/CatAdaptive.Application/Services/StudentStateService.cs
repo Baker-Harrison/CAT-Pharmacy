@@ -9,6 +9,10 @@ namespace CatAdaptive.Application.Services;
 /// </summary>
 public sealed class StudentStateService
 {
+    private const double AtRiskRetentionThreshold = 0.6;
+    private const double AtRiskConfidenceThreshold = 0.4;
+    private const int RecommendedNodeCount = 5;
+
     private readonly IStudentStateRepository _repository;
     private readonly IDomainGraphRepository _domainGraphRepository;
     private readonly IGeminiService _gemini;
@@ -104,9 +108,12 @@ public sealed class StudentStateService
         
         // Calculate overall mastery
         var overallMastery = CalculateOverallMastery(state);
+
+        // Identify at-risk concepts for spaced repetition
+        var atRiskNodes = IdentifyAtRiskConcepts(state, domainGraph);
         
         // Get AI recommendations for next nodes
-        var recommendedNodes = await GetRecommendedNextNodesAsync(state, domainGraph, ct);
+        var recommendedNodes = await GetRecommendedNextNodesAsync(state, domainGraph, atRiskNodes, ct);
         
         return new KnowledgeAnalysis(
             CriticalGaps: criticalGaps,
@@ -282,13 +289,14 @@ public sealed class StudentStateService
         {
             if (mastery.Level < MasteryLevel.Developing && mastery.PracticeAttempts > 0)
             {
+                var decayAdjustedConfidence = GetDecayAdjustedConfidence(mastery);
                 var node = domainGraph?.GetNode(mastery.DomainNodeId);
                 var prereqs = domainGraph?.GetPrerequisites(mastery.DomainNodeId) ?? Array.Empty<DomainNode>();
                 
                 gaps.Add(new KnowledgeGap(
                     GapNodeId: mastery.DomainNodeId,
                     Type: DetermineGapType(mastery),
-                    Severity: 1.0 - mastery.Confidence,
+                    Severity: Math.Clamp(1.0 - decayAdjustedConfidence, 0.0, 1.0),
                     Description: $"Struggling with {node?.Title ?? "concept"}",
                     PrerequisitesNeeded: prereqs.Select(p => p.Id).ToList(),
                     RelatedConceptsAffected: Array.Empty<Guid>()));
@@ -341,17 +349,23 @@ public sealed class StudentStateService
         if (!state.KnowledgeMasteries.Any())
             return 0.0;
         
-        return state.KnowledgeMasteries.Values.Average(m => m.Confidence);
+        return state.KnowledgeMasteries.Values.Average(m => GetDecayAdjustedConfidence(m));
     }
 
     private async Task<IReadOnlyList<Guid>> GetRecommendedNextNodesAsync(
         StudentStateModel state,
         DomainKnowledgeGraph? domainGraph,
+        IReadOnlyList<Guid> atRiskNodes,
         CancellationToken ct)
     {
         if (domainGraph == null)
             return Array.Empty<Guid>();
         
+        var prioritizedReview = atRiskNodes
+            .Where(domainGraph.Nodes.ContainsKey)
+            .Distinct()
+            .ToList();
+
         // Find nodes that are ready to learn (prerequisites met)
         var readyNodes = domainGraph.Nodes.Values
             .Where(node =>
@@ -365,11 +379,48 @@ public sealed class StudentStateService
                     state.GetKnowledgeMastery(p.Id).Level >= MasteryLevel.Developing);
             })
             .OrderByDescending(n => n.ExamRelevanceWeight)
-            .Take(5)
-            .Select(n => n.Id)
+            .ThenBy(n => GetDecayAdjustedConfidence(state.GetKnowledgeMastery(n.Id)))
+            .Select(m => m.Id)
             .ToList();
-        
-        return readyNodes;
+
+        var combined = prioritizedReview
+            .Concat(readyNodes)
+            .Distinct()
+            .Take(RecommendedNodeCount)
+            .ToList();
+
+        return combined;
+    }
+
+    private IReadOnlyList<Guid> IdentifyAtRiskConcepts(
+        StudentStateModel state,
+        DomainKnowledgeGraph? domainGraph)
+    {
+        if (domainGraph == null)
+            return Array.Empty<Guid>();
+
+        return state.KnowledgeMasteries.Values
+            .Where(m => m.PracticeAttempts > 0)
+            .Where(m =>
+            {
+                var retention = CalculateRetention(m.LastAssessed);
+                var decayAdjusted = GetDecayAdjustedConfidence(m);
+                return retention < AtRiskRetentionThreshold ||
+                       (m.Level >= MasteryLevel.Proficient && decayAdjusted < AtRiskConfidenceThreshold);
+            })
+            .OrderBy(m => CalculateRetention(m.LastAssessed))
+            .ThenBy(m => GetDecayAdjustedConfidence(m))
+            .Select(n => n.DomainNodeId)
+            .ToList();
+    }
+
+    private double GetDecayAdjustedConfidence(KnowledgeMastery mastery)
+    {
+        if (mastery.LastAssessed == DateTimeOffset.MinValue)
+            return mastery.Confidence;
+
+        var retention = CalculateRetention(mastery.LastAssessed);
+        return mastery.Confidence * retention;
     }
 
     private int CalculateConsecutiveDays(DateTimeOffset lastActive)

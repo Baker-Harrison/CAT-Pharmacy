@@ -1,10 +1,8 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using CatAdaptive.App.Messages;
 using CatAdaptive.Application.Abstractions;
-using CatAdaptive.Domain.Models;
 
 namespace CatAdaptive.App.ViewModels;
 
@@ -84,9 +82,3 @@ public sealed partial class LessonsViewModel : ObservableObject
         WeakReferenceMessenger.Default.Send(new NavigateToAdaptiveLessonMessage());
     }
 }
-
-/// <summary>
-/// Message sent to request navigation to the personalized learning flow.
-/// </summary>
-public sealed record NavigateToAdaptiveLessonMessage;
-
