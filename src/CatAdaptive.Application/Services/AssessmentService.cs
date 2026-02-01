@@ -67,20 +67,25 @@ public sealed class AssessmentService
         await _lessonPlanRepository.UpdateAsync(updatedLesson, ct);
         await _lessonPlanRepository.SaveChangesAsync(ct);
 
+        var contentGraph = await _contentGraphRepository.GetAsync(ct);
         var knowledgeGraph = await _knowledgeGraphRepository.GetByLearnerAsync(DefaultLearner.Id, ct);
         if (knowledgeGraph != null)
         {
+            if (contentGraph != null)
+            {
+                knowledgeGraph.InitializeConcepts(contentGraph.GetConcepts().Select(c => c.Id));
+            }
+
+            knowledgeGraph.ApplyDecay(TimeSpan.FromDays(14), DateTimeOffset.UtcNow);
             UpdateKnowledgeGraphFromQuiz(knowledgeGraph, lesson, quizResult, answers);
             await _knowledgeGraphRepository.SaveAsync(knowledgeGraph, ct);
         }
 
-        var contentGraph = await _contentGraphRepository.GetAsync(ct);
         if (contentGraph != null)
         {
              var existingLessons = await _lessonPlanRepository.GetAllAsync(ct);
-             var existingConceptIds = existingLessons.Select(l => l.ConceptId).Distinct().ToList();
-
              var kgForGen = knowledgeGraph ?? new KnowledgeGraph(DefaultLearner.Id);
+             var existingConceptIds = BuildExistingConceptIdsForGeneration(existingLessons, kgForGen);
 
              if (quizResult.ScorePercent < 80)
              {
@@ -121,6 +126,22 @@ public sealed class AssessmentService
         }
 
         return updatedLesson;
+    }
+
+    private static IReadOnlyList<Guid> BuildExistingConceptIdsForGeneration(
+        IReadOnlyList<LessonPlan> existingLessons,
+        KnowledgeGraph knowledgeGraph)
+    {
+        var reviewConcepts = knowledgeGraph.GetAtRiskConcepts(0.6)
+            .Select(m => m.ConceptId)
+            .Concat(knowledgeGraph.GetConceptsByState(MasteryState.Fragile).Select(m => m.ConceptId))
+            .ToHashSet();
+
+        return existingLessons
+            .Select(l => l.ConceptId)
+            .Where(id => !reviewConcepts.Contains(id))
+            .Distinct()
+            .ToList();
     }
 
     private static void UpdateKnowledgeGraphFromQuiz(

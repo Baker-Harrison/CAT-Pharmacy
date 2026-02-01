@@ -10,9 +10,15 @@ namespace CatAdaptive.Application.Services;
 /// </summary>
 public sealed class LearningFlowService
 {
+    private static readonly LearnerProfile DefaultLearner = new(
+        Guid.Parse("11111111-1111-1111-1111-111111111111"),
+        "Default Learner",
+        Array.Empty<string>());
+
     private readonly ContentIngestionService _ingestionService;
     private readonly AssessmentService _assessmentService;
     private readonly IContentGraphRepository _contentGraphRepository;
+    private readonly IKnowledgeGraphRepository _knowledgeGraphRepository;
     private readonly ILessonPlanGenerator _lessonPlanGenerator;
     private readonly ILessonPlanRepository _lessonPlanRepository;
 
@@ -20,12 +26,14 @@ public sealed class LearningFlowService
         ContentIngestionService ingestionService,
         AssessmentService assessmentService,
         IContentGraphRepository contentGraphRepository,
+        IKnowledgeGraphRepository knowledgeGraphRepository,
         ILessonPlanGenerator lessonPlanGenerator,
         ILessonPlanRepository lessonPlanRepository)
     {
         _ingestionService = ingestionService;
         _assessmentService = assessmentService;
         _contentGraphRepository = contentGraphRepository;
+        _knowledgeGraphRepository = knowledgeGraphRepository;
         _lessonPlanGenerator = lessonPlanGenerator;
         _lessonPlanRepository = lessonPlanRepository;
     }
@@ -72,8 +80,25 @@ public sealed class LearningFlowService
             return existingLessons.Count; // Return existing count
         }
 
+        // Load learner state for adaptive sequencing
+        var knowledgeGraph = await _knowledgeGraphRepository.GetByLearnerAsync(DefaultLearner.Id, ct);
+        knowledgeGraph.InitializeConcepts(contentGraph.GetConcepts().Select(c => c.Id));
+        knowledgeGraph.ApplyDecay(TimeSpan.FromDays(14), DateTimeOffset.UtcNow);
+        await _knowledgeGraphRepository.SaveAsync(knowledgeGraph, ct);
+
+        var hasEvidence = knowledgeGraph.Masteries.Values.Any(m =>
+            m.State != MasteryState.Unknown ||
+            m.CorrectCount > 0 ||
+            m.IncorrectCount > 0);
+
         // Generate new lessons
-        var lessons = await _lessonPlanGenerator.GenerateInitialLessonsAsync(contentGraph, ct);
+        var lessons = hasEvidence
+            ? await _lessonPlanGenerator.GenerateNextLessonsAsync(
+                contentGraph,
+                knowledgeGraph,
+                Array.Empty<Guid>(),
+                ct)
+            : await _lessonPlanGenerator.GenerateInitialLessonsAsync(contentGraph, ct);
         
         if (lessons.Count > 0)
         {

@@ -48,16 +48,29 @@ public partial class LessonsViewModel : ObservableObject
         {
             Lessons.Clear();
             var lessons = await _learningFlowService.GetLessonsAsync();
-            foreach (var lesson in lessons)
+            var orderedLessons = OrderLessons(lessons);
+            foreach (var lesson in orderedLessons)
             {
                 Lessons.Add(lesson);
             }
             
-            // Check if we have content but no lessons
-            HasContent = lessons.Count == 0;
-            StatusMessage = lessons.Count == 0 
+            HasContent = Lessons.Count > 0;
+            StatusMessage = Lessons.Count == 0 
                 ? "No lessons found. Upload content first, then click 'Generate Lessons'." 
-                : $"Loaded {lessons.Count} lesson(s).";
+                : $"Loaded {Lessons.Count} lesson(s).";
+
+            if (SelectedLesson != null)
+            {
+                var refreshed = Lessons.FirstOrDefault(l => l.Id == SelectedLesson.Id);
+                if (refreshed != null)
+                {
+                    SetSelectedLesson(refreshed);
+                }
+                else
+                {
+                    BackToList();
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -103,14 +116,7 @@ public partial class LessonsViewModel : ObservableObject
     [RelayCommand]
     private void OpenLesson(LessonPlan lesson)
     {
-        SelectedLesson = lesson;
-        QuizQuestions.Clear();
-        StatusMessage = null;
-
-        foreach (var question in lesson.Quiz.Questions)
-        {
-            QuizQuestions.Add(new LessonQuizQuestionViewModel(question));
-        }
+        SetSelectedLesson(lesson);
     }
 
     [RelayCommand]
@@ -141,13 +147,26 @@ public partial class LessonsViewModel : ObservableObject
 
         try
         {
+            var completedLesson = SelectedLesson;
             var answers = QuizQuestions
                 .Select(q => new LessonQuizAnswer(q.Question.Id, q.ResponseText.Trim()))
                 .ToList();
 
             await _learningFlowService.SubmitQuizAsync(SelectedLesson.Id, answers);
-            BackToList();
             await LoadLessonsAsync();
+
+            var nextLesson = completedLesson == null
+                ? null
+                : GetNextLessonAfterSubmission(completedLesson);
+
+            if (nextLesson != null)
+            {
+                SetSelectedLesson(nextLesson);
+            }
+            else
+            {
+                BackToList();
+            }
         }
         catch (Exception ex)
         {
@@ -181,6 +200,42 @@ public partial class LessonsViewModel : ObservableObject
             var updatedLesson = SelectedLesson.WithSectionProgress(section.Id, readPercent, isRead);
             SelectedLesson = updatedLesson;
         }
+    }
+
+    private static IReadOnlyList<LessonPlan> OrderLessons(IEnumerable<LessonPlan> lessons)
+    {
+        return lessons
+            .OrderByDescending(l => l.IsRemediation)
+            .ThenBy(l => l.ProgressPercent)
+            .ThenBy(l => l.CreatedAt)
+            .ToList();
+    }
+
+    private void SetSelectedLesson(LessonPlan lesson)
+    {
+        SelectedLesson = lesson;
+        QuizQuestions.Clear();
+        StatusMessage = null;
+
+        foreach (var question in lesson.Quiz.Questions)
+        {
+            QuizQuestions.Add(new LessonQuizQuestionViewModel(question));
+        }
+    }
+
+    private LessonPlan? GetNextLessonAfterSubmission(LessonPlan completedLesson)
+    {
+        var remediationFollowUp = Lessons.FirstOrDefault(l =>
+            l.IsRemediation &&
+            l.ConceptId == completedLesson.ConceptId &&
+            l.Id != completedLesson.Id);
+
+        if (remediationFollowUp != null)
+        {
+            return remediationFollowUp;
+        }
+
+        return Lessons.FirstOrDefault(l => l.Id != completedLesson.Id && l.ProgressPercent < 100);
     }
 }
 

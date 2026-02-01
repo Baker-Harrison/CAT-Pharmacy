@@ -132,6 +132,8 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
                 Guid.NewGuid()));
         }
 
+        EnsureActiveRecallStructure(sections, title);
+
         var quiz = MapQuiz(dto.Quiz, conceptId.Value);
         if (quiz.Questions.Count == 0)
         {
@@ -186,6 +188,38 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
             dto.Body?.Trim() ?? string.Empty,
             prompts,
             Guid.NewGuid()); // Generate a unique ID for each section
+    }
+
+    private static void EnsureActiveRecallStructure(List<LessonSection> sections, string title)
+    {
+        var totalPrompts = sections.Sum(section => section.Prompts.Count);
+        if (totalPrompts < 2)
+        {
+            sections.Add(new LessonSection(
+                "Active Recall and Spaced Review",
+                $"Use this section to retrieve key ideas from {title} without looking at the notes.",
+                new List<LessonPrompt>
+                {
+                    new("From memory, list 3 key ideas from this lesson.", null),
+                    new("Schedule a 24-hour recall: write a short summary and note any gaps.", null)
+                },
+                Guid.NewGuid()));
+            return;
+        }
+
+        var hasSpacedPrompt = sections.Any(section => section.Prompts.Any(prompt =>
+            prompt.Prompt.Contains("24-hour", StringComparison.OrdinalIgnoreCase) ||
+            prompt.Prompt.Contains("spaced", StringComparison.OrdinalIgnoreCase)));
+
+        if (!hasSpacedPrompt)
+        {
+            var last = sections[^1];
+            var updatedPrompts = last.Prompts.ToList();
+            updatedPrompts.Add(new LessonPrompt(
+                "In 24 hours, recall the lesson without notes and write a 3 sentence summary.",
+                null));
+            sections[^1] = new LessonSection(last.Heading, last.Body, updatedPrompts, last.Id);
+        }
     }
 
     private static LessonQuiz MapQuiz(LessonQuizDto? dto, Guid conceptId)
@@ -364,7 +398,10 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         sb.AppendLine("The learner has no knowledge graph history. Pick the simplest concepts by comprehension difficulty.");
         sb.AppendLine("Decide how many lessons are needed to build a foundation.");
         sb.AppendLine("Each lesson must be 15-20 minutes of reading and follow active learning principles.");
-        sb.AppendLine("Embed active learning prompts inside sections.");
+        sb.AppendLine("Prioritize active recall and spaced repetition in the structure:");
+        sb.AppendLine("- Start with a short retrieval warm-up (2-3 prompts).");
+        sb.AppendLine("- Embed recall prompts after each section.");
+        sb.AppendLine("- End with a spaced review prompt that schedules a 24-hour recall.");
         sb.AppendLine("Finish each lesson with a longer quiz (prefer 10-14 questions). Use only FillInBlank or OpenResponse types.");
         sb.AppendLine("Return ONLY valid JSON array with this schema:");
         sb.AppendLine("[");
@@ -413,13 +450,18 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         var sb = new StringBuilder();
         sb.AppendLine("You are continuing a learning plan based on prior quiz results.");
         sb.AppendLine("Pick the next lessons based on knowledge graph mastery and content graph coverage.");
-        sb.AppendLine("Do NOT repeat concepts already covered in existing lessons.");
+        sb.AppendLine("Avoid full lesson repeats unless a concept is listed in the priority review list.");
         sb.AppendLine("Each lesson must be 15-20 minutes of reading with active learning prompts.");
+        sb.AppendLine("Prioritize active recall and spaced repetition:");
+        sb.AppendLine("- Start with a short retrieval warm-up.");
+        sb.AppendLine("- Include spaced review prompts for priority review concepts.");
         sb.AppendLine("Finish each lesson with a longer quiz (prefer 10-14 questions). Use only FillInBlank or OpenResponse.");
         sb.AppendLine("Return ONLY the JSON array matching the previous schema.");
         sb.AppendLine();
         sb.AppendLine("EXISTING LESSON CONCEPT IDS:");
         sb.AppendLine(string.Join(", ", existingConceptIds));
+        sb.AppendLine();
+        AppendPriorityReviewConcepts(sb, contentGraph, knowledgeGraph);
         sb.AppendLine();
         sb.AppendLine("MASTERY STATES:");
         foreach (var concept in contentGraph.GetConcepts())
@@ -441,6 +483,7 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
         var sb = new StringBuilder();
         sb.AppendLine("Create one remediation lesson for the specified concept.");
         sb.AppendLine("The learner scored below 80% on the quiz. Use active learning and guided practice.");
+        sb.AppendLine("Prioritize active recall and spaced repetition prompts, including a 24-hour follow-up recall.");
         sb.AppendLine("Lesson length must be 15-20 minutes. Include a longer quiz at the end.");
         sb.AppendLine("Mark the lesson as remediation.");
         sb.AppendLine("Return ONLY a JSON array with a single lesson using the same schema.");
@@ -480,6 +523,35 @@ public sealed class GeminiLessonPlanGenerator : ILessonPlanGenerator
                     sb.AppendLine($"    - {explanation}");
                 }
             }
+        }
+    }
+
+    private static void AppendPriorityReviewConcepts(
+        StringBuilder sb,
+        ContentGraph contentGraph,
+        KnowledgeGraph knowledgeGraph)
+    {
+        var priorityConcepts = knowledgeGraph.GetAtRiskConcepts(0.6)
+            .Concat(knowledgeGraph.GetConceptsByState(MasteryState.Fragile))
+            .GroupBy(m => m.ConceptId)
+            .Select(g => g.First())
+            .OrderByDescending(m => m.DecayRisk)
+            .ThenBy(m => m.State)
+            .Take(6)
+            .ToList();
+
+        sb.AppendLine("PRIORITY REVIEW CONCEPTS (spaced repetition):");
+        if (priorityConcepts.Count == 0)
+        {
+            sb.AppendLine("- None");
+            return;
+        }
+
+        foreach (var mastery in priorityConcepts)
+        {
+            var concept = contentGraph.GetNode(mastery.ConceptId);
+            var label = concept?.Text ?? mastery.ConceptId.ToString();
+            sb.AppendLine($"- {mastery.ConceptId} | {label} | state={mastery.State}, decayRisk={mastery.DecayRisk:F2}");
         }
     }
 
