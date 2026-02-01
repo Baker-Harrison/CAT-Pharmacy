@@ -4,6 +4,8 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using CatAdaptive.App.Messages;
 using CatAdaptive.App.Models;
+using System.Windows;
+using System.Windows.Media;
 
 namespace CatAdaptive.App.ViewModels;
 
@@ -19,6 +21,10 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string _currentNavigation = "Upload"; // Default to Upload
+
+    [ObservableProperty]
+    [NotifyPropertyChangedRecipients]
+    private bool _isDarkModeEnabled; // New property for theme toggle
 
     private readonly UploadViewModel _uploadViewModel;
     private readonly LessonsViewModel _lessonsViewModel;
@@ -37,10 +43,33 @@ public partial class MainViewModel : ObservableObject
         _debugViewModel = debugViewModel;
 
         CurrentView = _uploadViewModel;
+        SetTheme(false); // Default to light mode on startup
 
         WeakReferenceMessenger.Default.Register<NotificationMessage>(this, (_, m) => {
             Notifications.Add(m.Notification);
         });
+    }
+
+    // Method called when IsDarkModeEnabled changes
+    partial void OnIsDarkModeEnabledChanged(bool value)
+    {
+        SetTheme(value);
+    }
+
+    private void SetTheme(bool isDark)
+    {
+        var app = Application.Current;
+        var mergedDictionaries = app.Resources.MergedDictionaries;
+
+        // Remove existing theme dictionary if present (to avoid duplicates)
+        var existingTheme = mergedDictionaries.FirstOrDefault(d => d.Source != null && d.Source.OriginalString.Contains("Theme"));
+        if (existingTheme != null) {
+            mergedDictionaries.Remove(existingTheme);
+        }
+
+        // Load new theme dictionary
+        var themeUri = isDark ? new Uri("Themes/DarkTheme.xaml", UriKind.Relative) : new Uri("Themes/LightTheme.xaml", UriKind.Relative);
+        mergedDictionaries.Add(new ResourceDictionary() { Source = themeUri });
     }
 
     private void NavigateToPage(object viewModel, string pageTitle, Action? beforeNavigate = null)

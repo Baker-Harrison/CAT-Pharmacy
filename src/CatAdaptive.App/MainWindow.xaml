@@ -9,7 +9,7 @@
         mc:Ignorable="d"
         Title="CAT Pharmacy - Adaptive Tutor" Height="750" Width="1200"
         WindowStartupLocation="CenterScreen"
-        Background="#F8FAFC">
+        Background="{DynamicResource WindowBackgroundBrush}"> <!-- Use DynamicResource -->
     
     <Window.Resources>
         <DataTemplate DataType="{x:Type vm:UploadViewModel}">
@@ -25,7 +25,6 @@
             <views:DebugView/>
         </DataTemplate>
     </Window.Resources>
-
     
     <Grid>
         <Grid.ColumnDefinitions>
@@ -34,7 +33,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- Sidebar Navigation -->
-        <Border Grid.Column="0" Background="#1E293B">
+        <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}"> <!-- Use DynamicResource -->
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -48,41 +47,46 @@
                                FontSize="20" FontWeight="Bold" 
                                Foreground="White"/>
                     <TextBlock Text="Adaptive Mastery Tutor" 
-                               FontSize="11" Foreground="#94A3B8" Margin="0,4,0,0"/>
+                               FontSize="11" Foreground="{DynamicResource SidebarTextBrush}" Margin="0,4,0,0"/> <!-- Use DynamicResource -->
                 </StackPanel>
                 
                 <StackPanel Grid.Row="1">
                     <TextBlock Text="CONTENT" FontSize="10" FontWeight="SemiBold" 
-                               Foreground="#64748B" Margin="20,10,20,8"/>
+                               Foreground="{DynamicResource SecondaryTextBrush}" Margin="20,10,20,8"/> <!-- Use DynamicResource -->
                     
                     <Button Content="📤  Upload Content" 
                             Command="{Binding NavigateToUploadCommand}"
                             Style="{StaticResource NavButtonStyle}"
-                            Tag="Upload"/> <!-- Added Tag -->
+                            Tag="Upload"/>
 
                     <Button Content="📘  Lessons" 
                             Command="{Binding NavigateToLessonsCommand}"
                             Style="{StaticResource NavButtonStyle}"
-                            Tag="Lessons"/> <!-- Added Tag -->
+                            Tag="Lessons"/>
                     
                     <TextBlock Text="ASSESS" FontSize="10" FontWeight="SemiBold" 
-                               Foreground="#64748B" Margin="20,25,20,8"/>
+                               Foreground="{DynamicResource SecondaryTextBrush}" Margin="20,25,20,8"/> <!-- Use DynamicResource -->
                     
                     <Button Content="🎯  CAT" 
                             Command="{Binding NavigateToCatCommand}"
                             Style="{StaticResource NavButtonStyle}"
-                            Tag="Cat"/> <!-- Added Tag -->
+                            Tag="Cat"/>
                             
                     <TextBlock Text="SYSTEM" FontSize="10" FontWeight="SemiBold" 
-                               Foreground="#64748B" Margin="20,25,20,8"/>
+                               Foreground="{DynamicResource SecondaryTextBrush}" Margin="20,25,20,8"/> <!-- Use DynamicResource -->
                     
                     <Button Content="🔧  Debug"
                             Command="{Binding NavigateToDebugCommand}"
                             Style="{StaticResource NavButtonStyle}"
-                            Tag="Debug"/> <!-- Added Tag -->
+                            Tag="Debug"/>
                 </StackPanel>
 
-                
+                <!-- Theme Toggle -->
+                <StackPanel Grid.Row="2" Margin="20,10,20,20">
+                    <ToggleButton Content="🌙 Dark Mode"
+                                  IsChecked="{Binding IsDarkModeEnabled}"
+                                  Style="{StaticResource NavToggleButtonStyle}"/> <!-- New Style for ToggleButton -->
+                </StackPanel>
 
             </Grid>
         </Border>
@@ -95,8 +99,10 @@
             </Grid.RowDefinitions>
 
             <!-- Header -->
-            <Border Grid.Row="0" Background="White" Padding="25,15" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
-                <TextBlock Text="{Binding CurrentPage}" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" AutomationProperties.Name="Current page title"/>
+            <Border Grid.Row="0" Background="{DynamicResource HeaderBackgroundBrush}" Padding="25,15" 
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"> <!-- Use DynamicResource -->
+                <TextBlock Text="{Binding CurrentPage}" FontSize="18" FontWeight="SemiBold" 
+                           Foreground="{DynamicResource PrimaryTextBrush}" AutomationProperties.Name="Current page title"/> <!-- Use DynamicResource -->
             </Border>
 
             <!-- Content -->
@@ -117,10 +123,10 @@
                 <ItemsControl ItemsSource="{Binding Notifications}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,10" Width="300">
+                            <Border Background="{DynamicResource ContentBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,10" Width="300">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#1E293B"/>
-                                    <Button Content="×" HorizontalAlignment="Right" Margin="10,5,0,0" Background="Transparent" BorderThickness="0" Foreground="#64748B" FontSize="16"
+                                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <Button Content="×" HorizontalAlignment="Right" Margin="10,5,0,0" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="16"
                                             Command="{Binding DataContext.RemoveNotificationCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
                                             AutomationProperties.Name="Close notification"/>
                                 </StackPanel>
