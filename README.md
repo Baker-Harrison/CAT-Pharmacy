@@ -45,3 +45,14 @@ Local JSON data is stored under `%LOCALAPPDATA%\CatAdaptive\data\`:
 ## More docs
 
 See `docs/README.md` for detailed documentation.
+-e 
+```
+   +-------+
+  /       /|
+ /       / |
++-------+  |
+|       |  +
+|       | /
+|       |/
++-------+
+```
