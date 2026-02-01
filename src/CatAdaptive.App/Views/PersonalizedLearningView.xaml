@@ -1,0 +1,201 @@
+<UserControl x:Class="CatAdaptive.App.Views.PersonalizedLearningView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="800" d:DesignWidth="1200">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <Style x:Key="ProgressBarStyle" TargetType="ProgressBar">
+            <Setter Property="Height" Value="6"/>
+            <Setter Property="Background" Value="{StaticResource BorderLightBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource BackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderLightBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="32,20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Personalized Learning"
+                              FontSize="24"
+                              FontWeight="Bold"
+                              Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{Binding CurrentModule.Title, FallbackValue='Start your learning journey'}"
+                               FontSize="14"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Margin="0,0,24,0">
+                        <TextBlock Text="Overall Progress" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <ProgressBar Style="{StaticResource ProgressBarStyle}"
+                                        Value="{Binding OverallProgress}"
+                                        Maximum="100"
+                                        Width="120"/>
+                            <TextBlock Text="{Binding OverallProgress, StringFormat='{}{0:F0}%%'}"
+                                      FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button Content="Exit"
+                           Style="{StaticResource SecondaryButtonStyle}"
+                           Command="{Binding ExitSessionCommand}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <Grid Grid.Row="1" Margin="32">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Sidebar - Module Progress -->
+            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,24,0">
+                <StackPanel>
+                    <TextBlock Text="Learning Path"
+                              FontSize="16"
+                              FontWeight="SemiBold"
+                              Foreground="{StaticResource TextPrimaryBrush}"
+                              Margin="0,0,0,16"/>
+
+                    <ItemsControl ItemsSource="{Binding ModuleProgress}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="12" Margin="0,0,0,8" CornerRadius="8"
+                                        Background="{Binding IsCurrent, Converter={StaticResource BoolToVisibility}, ConverterParameter='#EFF6FF|Transparent'}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Grid.Column="0" Width="24" Height="24" CornerRadius="12" Margin="0,0,12,0"
+                                                Background="{Binding IsCompleted, Converter={StaticResource BoolToVisibility}, ConverterParameter='#10B981|#E2E8F0'}">
+                                            <TextBlock Text="✓" Foreground="White" FontSize="12"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                      Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibility}}"/>
+                                        </Border>
+
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                                  FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"
+                                                  TextTrimming="CharacterEllipsis"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Content Area -->
+            <Grid Grid.Column="1">
+                <!-- Not Started State -->
+                <Border Style="{StaticResource CardStyle}"
+                        Visibility="{Binding CurrentPhase, Converter={StaticResource BoolToVisibility}, ConverterParameter='NotStarted'}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="🎯" FontSize="64" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Ready to Learn?" FontSize="28" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"
+                                  HorizontalAlignment="Center" Margin="0,16,0,8"/>
+                        <TextBlock Text="Start a personalized learning session tailored to your knowledge level"
+                                  FontSize="16" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" TextWrapping="Wrap"
+                                  MaxWidth="400" TextAlignment="Center"/>
+                        <Button Content="Start Learning" Style="{StaticResource PrimaryButtonStyle}"
+                                Command="{Binding StartLearningCommand}" Margin="0,24,0,0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Learning Content -->
+                <Border Style="{StaticResource CardStyle}"
+                        Visibility="{Binding CurrentPhase, Converter={StaticResource BoolToVisibility}, ConverterParameter='Learning'}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="{Binding CurrentModule.Title}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{Binding CurrentModule.Description}" FontSize="14" Foreground="{StaticResource TextSecondaryBrush}"
+                                      Margin="0,8,0,24" TextWrapping="Wrap"/>
+
+                            <ItemsControl ItemsSource="{Binding CurrentContent.PersonalizedContent}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource BackgroundBrush}" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding ContentType}" FontSize="12" FontWeight="SemiBold"
+                                                          Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,8"/>
+                                                <TextBlock Text="{Binding Content}" FontSize="14" Foreground="{StaticResource TextPrimaryBrush}"
+                                                          TextWrapping="Wrap" LineHeight="24"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Grid Margin="0,16,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="1" Content="Continue →" Style="{StaticResource PrimaryButtonStyle}"
+                                        Command="{Binding CompleteModuleCommand}"/>
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Session Complete -->
+                <Border Style="{StaticResource CardStyle}"
+                        Visibility="{Binding CurrentPhase, Converter={StaticResource BoolToVisibility}, ConverterParameter='SessionComplete'}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="🎉" FontSize="64" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Session Complete!" FontSize="28" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"
+                                  HorizontalAlignment="Center" Margin="0,16,0,8"/>
+                        <TextBlock Text="Great job! You've completed your personalized learning session."
+                                  FontSize="16" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        <Button Content="Return to Dashboard" Style="{StaticResource PrimaryButtonStyle}"
+                                Command="{Binding ExitSessionCommand}" Margin="0,24,0,0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Loading Overlay -->
+        <Border Grid.RowSpan="2" Background="#80000000"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}">
+            <Border Style="{StaticResource CardStyle}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="48">
+                <StackPanel HorizontalAlignment="Center">
+                    <ProgressBar IsIndeterminate="True" Width="200" Height="4" Style="{StaticResource ProgressBarStyle}"/>
+                    <TextBlock Text="{Binding LoadingMessage}" FontSize="16" Foreground="{StaticResource TextSecondaryBrush}"
+                              HorizontalAlignment="Center" Margin="0,16,0,0"/>
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- Error Message -->
+        <Border Grid.Row="1" Background="{StaticResource ErrorBackgroundBrush}" BorderBrush="{StaticResource ErrorBrush}" BorderThickness="1" CornerRadius="8"
+                Padding="16" Margin="32" VerticalAlignment="Top"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource ErrorBrush}" FontSize="14"/>
+        </Border>
+    </Grid>
+</UserControl>

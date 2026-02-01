@@ -7,10 +7,10 @@
         xmlns:vm="clr-namespace:CatAdaptive.App.ViewModels"
         xmlns:views="clr-namespace:CatAdaptive.App.Views"
         mc:Ignorable="d"
-        Title="CAT Pharmacy - Adaptive Tutor" Height="750" Width="1200"
+        Title="CAT Pharmacy" Height="800" Width="1400"
         WindowStartupLocation="CenterScreen"
-        Background="#F8FAFC">
-    
+        Background="{StaticResource BackgroundBrush}">
+
     <Window.Resources>
         <DataTemplate DataType="{x:Type vm:UploadViewModel}">
             <views:UploadView/>
@@ -18,94 +18,183 @@
         <DataTemplate DataType="{x:Type vm:LessonsViewModel}">
             <views:LessonsView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:AdaptiveSessionViewModel}">
-            <views:AdaptiveSessionView/>
+        <DataTemplate DataType="{x:Type vm:PersonalizedLearningViewModel}">
+            <views:PersonalizedLearningView/>
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:DebugViewModel}">
             <views:DebugView/>
         </DataTemplate>
+
+        <Style x:Key="NavItemStyle" TargetType="RadioButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="GroupName" Value="Navigation"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="10"
+                                Padding="{TemplateBinding Padding}"
+                                Margin="8,2">
+                            <StackPanel Orientation="Horizontal">
+                                <Path x:Name="icon"
+                                      Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                      Fill="{TemplateBinding Foreground}"
+                                      Width="20" Height="20"
+                                      Stretch="Uniform"/>
+                                <TextBlock x:Name="label"
+                                          Text="{TemplateBinding Content}"
+                                          Margin="12,0,0,0"
+                                          VerticalAlignment="Center"
+                                          Foreground="{TemplateBinding Foreground}"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#312E81" TargetName="border"/>
+                                <Setter Property="Foreground" Value="#E0E7FF"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" TargetName="border"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="240"/>
+            <ColumnDefinition Width="260"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Sidebar Navigation -->
-        <Border Grid.Column="0" Background="#1E293B">
+        <!-- Sidebar -->
+        <Border Grid.Column="0" Background="{StaticResource SidebarBrush}">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                
-                <!-- Logo/Title -->
-                <StackPanel Grid.Row="0" Margin="20,25,20,20">
-                    <TextBlock Text="🧬 CAT Pharmacy" 
-                               FontSize="20" FontWeight="Bold" 
-                               Foreground="White"/>
-                    <TextBlock Text="Adaptive Mastery Tutor" 
-                               FontSize="11" Foreground="#94A3B8" Margin="0,4,0,0"/>
-                </StackPanel>
-                
-                <StackPanel Grid.Row="1">
-                    <TextBlock Text="CONTENT" FontSize="10" FontWeight="SemiBold" 
-                               Foreground="#64748B" Margin="20,10,20,8"/>
-                    
-                    <Button Content="📤  Upload Content" 
-                            Command="{Binding NavigateToUploadCommand}"
-                            Style="{StaticResource NavButtonStyle}"
-                            Tag="Upload"/> <!-- Added Tag -->
 
-                    <Button Content="📘  Lessons" 
-                            Command="{Binding NavigateToLessonsCommand}"
-                            Style="{StaticResource NavButtonStyle}"
-                            Tag="Lessons"/> <!-- Added Tag -->
-                    
-                    <TextBlock Text="ASSESS" FontSize="10" FontWeight="SemiBold" 
-                               Foreground="#64748B" Margin="20,25,20,8"/>
-                    
-                    <Button Content="🎯  CAT" 
-                            Command="{Binding NavigateToCatCommand}"
-                            Style="{StaticResource NavButtonStyle}"
-                            Tag="Cat"/> <!-- Added Tag -->
-                            
-                    <TextBlock Text="SYSTEM" FontSize="10" FontWeight="SemiBold" 
-                               Foreground="#64748B" Margin="20,25,20,8"/>
-                    
-                    <Button Content="🔧  Debug"
-                            Command="{Binding NavigateToDebugCommand}"
-                            Style="{StaticResource NavButtonStyle}"
-                            Tag="Debug"/> <!-- Added Tag -->
+                <!-- Logo -->
+                <StackPanel Grid.Row="0" Margin="24,32,24,24">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0"
+                                Width="40" Height="40"
+                                Background="{StaticResource PrimaryBrush}"
+                                CornerRadius="10"
+                                Margin="0,0,12,0">
+                            <TextBlock Text="🧬"
+                                      FontSize="20"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="CAT Pharmacy"
+                                      FontSize="18"
+                                      FontWeight="Bold"
+                                      Foreground="White"/>
+                            <TextBlock Text="Adaptive Learning"
+                                      FontSize="12"
+                                      Foreground="#818CF8"/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
 
-                
+                <!-- Navigation -->
+                <StackPanel Grid.Row="2" Margin="8,16,8,0">
+                    <TextBlock Text="LEARN"
+                              Style="{StaticResource SectionHeaderStyle}"
+                              Margin="16,0,0,8"
+                              FontSize="10"
+                              FontWeight="SemiBold"
+                              Foreground="#94A3B8"/>
 
+                    <RadioButton x:Name="navUpload"
+                                Content="Upload Content"
+                                Style="{StaticResource NavItemStyle}"
+                                Checked="NavigateToUpload"/>
+
+                    <RadioButton x:Name="navLessons"
+                                Content="My Lessons"
+                                Style="{StaticResource NavItemStyle}"
+                                Checked="NavigateToLessons"
+                                IsChecked="True"/>
+
+                    <RadioButton x:Name="navLearning"
+                                Content="Study Session"
+                                Style="{StaticResource NavItemStyle}"
+                                Checked="NavigateToLearning"/>
+
+                    <TextBlock Text="SYSTEM"
+                              Margin="16,24,0,8"
+                              FontSize="10"
+                              FontWeight="SemiBold"
+                              Foreground="#94A3B8"/>
+
+                    <RadioButton x:Name="navDebug"
+                                Content="Debug"
+                                Style="{StaticResource NavItemStyle}"
+                                Checked="NavigateToDebug"/>
+                </StackPanel>
+
+                <!-- User Profile -->
+                <Border Grid.Row="3"
+                        Background="#312E81"
+                        CornerRadius="12"
+                        Margin="16,16,16,24"
+                        Padding="16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0"
+                                Width="40" Height="40"
+                                Background="{StaticResource PrimaryLightBrush}"
+                                CornerRadius="20">
+                            <TextBlock Text="👤"
+                                      FontSize="18"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Student"
+                                      FontSize="14"
+                                      FontWeight="SemiBold"
+                                      Foreground="White"/>
+                            <TextBlock Text="Active"
+                                      FontSize="12"
+                                      Foreground="#10B981"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
 
         <!-- Main Content Area -->
         <Grid Grid.Column="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <!-- Header -->
-            <Border Grid.Row="0" Background="White" Padding="25,15" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
-                <TextBlock Text="{Binding CurrentPage}" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" AutomationProperties.Name="Current page title"/>
-            </Border>
-
-            <!-- Content -->
-            <ContentControl Grid.Row="1" Content="{Binding CurrentView}" Margin="0" AutomationProperties.Name="Main content area">
+            <ContentControl Content="{Binding CurrentView}" Margin="0">
                 <ContentControl.Triggers>
                     <EventTrigger RoutedEvent="Loaded">
                         <BeginStoryboard>
                             <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.25"/>
                             </Storyboard>
                         </BeginStoryboard>
                     </EventTrigger>
@@ -113,17 +202,37 @@
             </ContentControl>
 
             <!-- Notification Center -->
-            <Grid Grid.Column="1" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,20,20,0" Panel.ZIndex="10">
+            <Grid HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,24,24,0" Panel.ZIndex="10">
                 <ItemsControl ItemsSource="{Binding Notifications}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,10" Width="300">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#1E293B"/>
-                                    <Button Content="×" HorizontalAlignment="Right" Margin="10,5,0,0" Background="Transparent" BorderThickness="0" Foreground="#64748B" FontSize="16"
-                                            Command="{Binding DataContext.RemoveNotificationCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
-                                            AutomationProperties.Name="Close notification"/>
-                                </StackPanel>
+                            <Border Background="{StaticResource SurfaceBrush}"
+                                    BorderBrush="{StaticResource BorderLightBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="20"
+                                    Margin="0,0,0,12"
+                                    Width="320">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                              Text="{Binding Message}"
+                                              TextWrapping="Wrap"
+                                              Foreground="{StaticResource TextPrimaryBrush}"
+                                              VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1"
+                                           Content="✕"
+                                           Width="28" Height="28"
+                                           Background="Transparent"
+                                           BorderThickness="0"
+                                           Foreground="{StaticResource TextTertiaryBrush}"
+                                           FontSize="12"
+                                           Command="{Binding DataContext.RemoveNotificationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                           CommandParameter="{Binding}"/>
+                                </Grid>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

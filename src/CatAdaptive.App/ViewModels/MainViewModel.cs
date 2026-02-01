@@ -17,29 +17,34 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<Notification> Notifications { get; } = new();
 
-    [ObservableProperty]
-    private string _currentNavigation = "Upload"; // Default to Upload
-
     private readonly UploadViewModel _uploadViewModel;
     private readonly LessonsViewModel _lessonsViewModel;
-    private readonly AdaptiveSessionViewModel _adaptiveSessionViewModel;
+    private readonly PersonalizedLearningViewModel _personalizedLearningViewModel;
     private readonly DebugViewModel _debugViewModel;
 
     public MainViewModel(
         UploadViewModel uploadViewModel,
         LessonsViewModel lessonsViewModel,
-        AdaptiveSessionViewModel adaptiveSessionViewModel,
+        PersonalizedLearningViewModel personalizedLearningViewModel,
         DebugViewModel debugViewModel)
     {
         _uploadViewModel = uploadViewModel;
         _lessonsViewModel = lessonsViewModel;
-        _adaptiveSessionViewModel = adaptiveSessionViewModel;
+        _personalizedLearningViewModel = personalizedLearningViewModel;
         _debugViewModel = debugViewModel;
 
         CurrentView = _uploadViewModel;
 
         WeakReferenceMessenger.Default.Register<NotificationMessage>(this, (_, m) => {
             Notifications.Add(m.Notification);
+        });
+
+        WeakReferenceMessenger.Default.Register<NavigateToLessonsMessage>(this, (_, _) => {
+            NavigateToLessons();
+        });
+
+        WeakReferenceMessenger.Default.Register<NavigateToAdaptiveLessonMessage>(this, (_, _) => {
+            NavigateToAdaptiveLesson();
         });
     }
 
@@ -48,12 +53,6 @@ public partial class MainViewModel : ObservableObject
         beforeNavigate?.Invoke();
         CurrentView = viewModel;
         CurrentPage = pageTitle;
-
-        // Update current navigation state
-        if (viewModel is UploadViewModel) CurrentNavigation = "Upload";
-        else if (viewModel is LessonsViewModel) CurrentNavigation = "Lessons";
-        else if (viewModel is AdaptiveSessionViewModel) CurrentNavigation = "Cat";
-        else if (viewModel is DebugViewModel) CurrentNavigation = "Debug";
     }
 
     [RelayCommand]
@@ -65,13 +64,20 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToLessons()
     {
-        NavigateToPage(_lessonsViewModel, "Lessons", () => _lessonsViewModel.LoadLessonsCommand.Execute(null));
+        if (_personalizedLearningViewModel.CurrentPhase != LearningPhase.NotStarted)
+        {
+            NavigateToPage(_personalizedLearningViewModel, "Personalized Learning");
+        }
+        else
+        {
+            NavigateToPage(_lessonsViewModel, "Lessons");
+        }
     }
 
     [RelayCommand]
-    private void NavigateToCat()
+    private void NavigateToAdaptiveLesson()
     {
-        NavigateToPage(_adaptiveSessionViewModel, "CAT");
+        NavigateToPage(_personalizedLearningViewModel, "Personalized Learning");
     }
 
     [RelayCommand]
