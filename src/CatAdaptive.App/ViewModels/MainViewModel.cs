@@ -19,6 +19,12 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<Notification> Notifications { get; } = new();
 
+    [ObservableProperty]
+    private string _currentNavigation = "Upload"; // Default to Upload
+
+    [ObservableProperty]
+    private bool _isDarkModeEnabled; // New property for theme toggle
+
     private readonly UploadViewModel _uploadViewModel;
     private readonly LessonsViewModel _lessonsViewModel;
     private readonly PersonalizedLearningViewModel _personalizedLearningViewModel;
@@ -59,7 +65,7 @@ public partial class MainViewModel : ObservableObject
 
     private void SetTheme(bool isDark)
     {
-        var app = Application.Current;
+        var app = System.Windows.Application.Current;
         var mergedDictionaries = app.Resources.MergedDictionaries;
 
         // Remove existing theme dictionary if present (to avoid duplicates)

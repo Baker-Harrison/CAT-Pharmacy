@@ -380,7 +380,7 @@ public sealed class StudentStateService
             })
             .OrderByDescending(n => n.ExamRelevanceWeight)
             .ThenBy(n => GetDecayAdjustedConfidence(state.GetKnowledgeMastery(n.Id)))
-            .Select(m => m.DomainNodeId)
+            .Select(m => m.Id)
             .ToList();
 
         var combined = prioritizedReview
@@ -410,7 +410,7 @@ public sealed class StudentStateService
             })
             .OrderBy(m => CalculateRetention(m.LastAssessed))
             .ThenBy(m => GetDecayAdjustedConfidence(m))
-            .Select(n => n.Id)
+            .Select(n => n.DomainNodeId)
             .ToList();
     }
 
