@@ -103,9 +103,20 @@ public sealed class MainViewModelTests
     {
         if (WpfApplication.Current == null)
         {
-            _ = new WpfApplication();
+            try
+            {
+                _ = new WpfApplication();
+            }
+            catch
+            {
+                // Ignore if application already initialized in another thread
+            }
         }
-        WpfApplication.Current!.Resources.MergedDictionaries.Clear();
+        
+        if (WpfApplication.Current != null)
+        {
+            WpfApplication.Current.Resources.MergedDictionaries.Clear();
+        }
     }
 
     private sealed class ViewModelFixture
