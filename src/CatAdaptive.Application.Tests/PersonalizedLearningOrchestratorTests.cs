@@ -98,29 +98,53 @@ public sealed class PersonalizedLearningOrchestratorTests
 
         public OrchestratorFixture()
         {
-            var nodeId = Guid.NewGuid();
+            var nodeId1 = Guid.NewGuid();
+            var nodeId2 = Guid.NewGuid();
             _domainGraph = new DomainKnowledgeGraph();
             _domainGraph.AddNode(new DomainNode(
-                nodeId,
-                "Node",
-                "Desc",
+                nodeId1,
+                "Node 1",
+                "Desc 1",
                 DomainNodeType.Concept,
                 BloomsLevel.Understand,
                 0.4,
                 0.9,
+                new[] { "tag" }));
+            _domainGraph.AddNode(new DomainNode(
+                nodeId2,
+                "Node 2",
+                "Desc 2",
+                DomainNodeType.Concept,
+                BloomsLevel.Understand,
+                0.5,
+                0.8,
                 new[] { "tag" }));
 
             _contentGraph = new AIEnhancedContentGraph();
             _contentGraph.AddNode(new ContentNode(
                 Guid.NewGuid(),
                 ContentNodeType.Explanation,
-                "Node",
-                "Content",
+                "Node 1",
+                "Content 1",
                 ContentModality.Text,
                 BloomsLevel.Understand,
                 0.3,
                 5,
-                new[] { nodeId },
+                new[] { nodeId1 },
+                new[] { "tag" },
+                ContentOrigin.Slides,
+                0.9,
+                DateTimeOffset.UtcNow));
+            _contentGraph.AddNode(new ContentNode(
+                Guid.NewGuid(),
+                ContentNodeType.Explanation,
+                "Node 2",
+                "Content 2",
+                ContentModality.Text,
+                BloomsLevel.Understand,
+                0.3,
+                5,
+                new[] { nodeId2 },
                 new[] { "tag" },
                 ContentOrigin.Slides,
                 0.9,
@@ -128,22 +152,39 @@ public sealed class PersonalizedLearningOrchestratorTests
             _contentGraph.AddNode(new ContentNode(
                 Guid.NewGuid(),
                 ContentNodeType.Question,
-                "Question",
-                "Q?",
+                "Question 1",
+                "Q1?",
                 ContentModality.Text,
                 BloomsLevel.Understand,
                 0.3,
                 3,
-                new[] { nodeId },
+                new[] { nodeId1 },
+                new[] { "tag" },
+                ContentOrigin.Slides,
+                0.9,
+                DateTimeOffset.UtcNow));
+            _contentGraph.AddNode(new ContentNode(
+                Guid.NewGuid(),
+                ContentNodeType.Question,
+                "Question 2",
+                "Q2?",
+                ContentModality.Text,
+                BloomsLevel.Understand,
+                0.3,
+                3,
+                new[] { nodeId2 },
                 new[] { "tag" },
                 ContentOrigin.Slides,
                 0.9,
                 DateTimeOffset.UtcNow));
 
             _objectiveMap = new LearningObjectiveMap();
-            var objective = new LearningObjective(Guid.NewGuid(), Guid.NewGuid(), "Objective", BloomsLevel.Understand, "Topic", new[] { "tag" });
-            _objectiveMap.AddObjective(objective);
-            _objectiveMap.LinkToDomainNode(objective.Id, nodeId);
+            var objective1 = new LearningObjective(Guid.NewGuid(), Guid.NewGuid(), "Objective 1", BloomsLevel.Understand, "Topic", new[] { "tag" });
+            var objective2 = new LearningObjective(Guid.NewGuid(), Guid.NewGuid(), "Objective 2", BloomsLevel.Understand, "Topic", new[] { "tag" });
+            _objectiveMap.AddObjective(objective1);
+            _objectiveMap.AddObjective(objective2);
+            _objectiveMap.LinkToDomainNode(objective1.Id, nodeId1);
+            _objectiveMap.LinkToDomainNode(objective2.Id, nodeId2);
 
             _studentRepository.Setup(r => r.GetByStudentAsync(StudentId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() => _state);

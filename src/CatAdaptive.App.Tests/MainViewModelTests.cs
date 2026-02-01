@@ -90,7 +90,7 @@ public sealed class MainViewModelTests
                 fixture.PersonalizedLearningViewModel,
                 fixture.DebugViewModel);
 
-            var notification = new CatAdaptive.App.Models.Notification("Title", "Message");
+            var notification = new CatAdaptive.App.Models.Notification("Message", CatAdaptive.App.Models.NotificationType.Info);
             vm.Notifications.Add(notification);
 
             vm.RemoveNotificationCommand.Execute(notification);

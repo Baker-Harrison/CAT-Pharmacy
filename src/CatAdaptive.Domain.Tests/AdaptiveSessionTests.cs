@@ -13,9 +13,10 @@ public sealed class AdaptiveSessionTests
         var itemHigh = BuildItem("High", new ItemParameter(Difficulty: 0.0, Discrimination: 2.0));
         var session = new AdaptiveSession(
             Guid.NewGuid(),
-            new LearnerProfile(Guid.NewGuid(), "Test", 0.0),
+            new LearnerProfile(Guid.NewGuid(), "Test", Array.Empty<string>()),
             new[] { itemLow, itemHigh },
-            TerminationCriteria.Default());
+            TerminationCriteria.Default(),
+            AbilityEstimate.Initial(theta: 0.0));
 
         var selected = session.AdvanceToNextItem();
 
@@ -29,7 +30,7 @@ public sealed class AdaptiveSessionTests
         var item = BuildItem("Item", new ItemParameter(Difficulty: 0.0, Discrimination: 1.5));
         var session = new AdaptiveSession(
             Guid.NewGuid(),
-            new LearnerProfile(Guid.NewGuid(), "Test", 0.0),
+            new LearnerProfile(Guid.NewGuid(), "Test", Array.Empty<string>()),
             new[] { item },
             new TerminationCriteria(TargetStandardError: 0.0, MaxItems: 1, MasteryTheta: null, MaxStallCount: 3));
 
@@ -48,7 +49,7 @@ public sealed class AdaptiveSessionTests
     {
         var session = new AdaptiveSession(
             Guid.NewGuid(),
-            new LearnerProfile(Guid.NewGuid(), "Test", 0.0),
+            new LearnerProfile(Guid.NewGuid(), "Test", Array.Empty<string>()),
             new[] { BuildItem("Item", new ItemParameter(0.0)) },
             TerminationCriteria.Default());
 
@@ -63,7 +64,7 @@ public sealed class AdaptiveSessionTests
         var item = BuildItem("Item", new ItemParameter(Difficulty: -2.5, Discrimination: 2.0));
         var session = new AdaptiveSession(
             Guid.NewGuid(),
-            new LearnerProfile(Guid.NewGuid(), "Test", 0.0),
+            new LearnerProfile(Guid.NewGuid(), "Test", Array.Empty<string>()),
             new[] { item },
             new TerminationCriteria(TargetStandardError: 0.000001, MaxItems: 99, MasteryTheta: -3.0, MaxStallCount: 3));
 
