@@ -21,21 +21,25 @@ public static class ServiceCollectionExtensions
             "CatAdaptive",
             "data");
 
+        // Core repositories
         services.AddSingleton<IItemRepository>(new JsonItemRepository(dataDirectory));
         services.AddSingleton<IKnowledgeUnitRepository>(new JsonKnowledgeUnitRepository(dataDirectory));
-        services.AddSingleton<IContentGraphRepository>(new JsonContentGraphRepository(dataDirectory));
-        services.AddSingleton<IKnowledgeGraphRepository>(new JsonKnowledgeGraphRepository(dataDirectory));
         services.AddSingleton<ILessonPlanRepository>(new JsonLessonPlanRepository(dataDirectory));
         services.AddSingleton<ISessionRepository>(new InMemorySessionRepository());
         services.AddSingleton<IPptxParser, PptxParser>();
         services.AddSingleton<IDialogService, DialogService>();
 
-        // New adaptive system repositories
-        services.AddSingleton<IDomainKnowledgeGraphRepository, JsonDomainKnowledgeGraphRepository>();
-        services.AddSingleton<ILearnerModelRepository, JsonLearnerModelRepository>();
-        services.AddSingleton<IEnhancedContentGraphRepository, JsonEnhancedContentGraphRepository>();
-        services.AddSingleton<IAdaptiveSessionRepository, JsonAdaptiveSessionRepository>();
+        // Personalized learning repositories
+        services.AddSingleton<IStudentStateRepository>(sp =>
+            new JsonStudentStateRepository(dataDirectory, sp.GetRequiredService<ILogger<JsonStudentStateRepository>>()));
+        services.AddSingleton<IAIContentGraphRepository>(sp =>
+            new JsonAIContentGraphRepository(dataDirectory, sp.GetRequiredService<ILogger<JsonAIContentGraphRepository>>()));
+        services.AddSingleton<ILearningObjectiveMapRepository>(sp =>
+            new JsonLearningObjectiveMapRepository(dataDirectory, sp.GetRequiredService<ILogger<JsonLearningObjectiveMapRepository>>()));
+        services.AddSingleton<IDomainGraphRepository>(sp =>
+            new JsonDomainGraphRepository(dataDirectory, sp.GetRequiredService<ILogger<JsonDomainGraphRepository>>()));
 
+        // Gemini configuration
         var apiKey = configuration["Gemini:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -57,21 +61,24 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ILessonPlanGenerator>(new GeminiLessonPlanGenerator(apiKey, modelName));
         services.AddSingleton<ILessonQuizEvaluator>(new GeminiLessonQuizEvaluator(apiKey, modelName));
 
+        // NEW: Gemini service for personalized learning
+        services.AddSingleton<IGeminiService>(sp =>
+            new GeminiService(apiKey, modelName, sp.GetRequiredService<ILogger<GeminiService>>()));
+
+        // Core services
         services.AddSingleton<ContentIngestionService>();
-        services.AddSingleton<AssessmentService>();
-        services.AddSingleton<LearningFlowService>();
         services.AddSingleton<AdaptiveTestService>();
 
-        // New adaptive system services
-        services.AddSingleton<TargetSelectionService>();
-        services.AddSingleton<DiagnosticQuizService>();
-        services.AddSingleton<AdaptiveLessonGenerator>();
-        services.AddSingleton<AdaptiveLessonFlowService>();
-        services.AddSingleton<SpacedReactivationService>();
+        // Personalized learning services
+        services.AddSingleton<StudentStateService>();
+        services.AddSingleton<AIContentExpansionService>();
+        services.AddSingleton<ToTContentGenerator>();
+        services.AddSingleton<PersonalizedLearningOrchestrator>();
 
+        // ViewModels
         services.AddSingleton<UploadViewModel>();
         services.AddSingleton<LessonsViewModel>();
-        services.AddSingleton<AdaptiveSessionViewModel>();
+        services.AddSingleton<PersonalizedLearningViewModel>();
         services.AddSingleton<DebugViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();

@@ -12,7 +12,7 @@ public partial class DebugViewModel : ObservableObject
     private readonly IKnowledgeUnitRepository _knowledgeUnitRepository;
     private readonly IItemRepository _itemRepository;
     private readonly ILessonPlanRepository _lessonPlanRepository;
-    private readonly AdaptiveSessionViewModel _adaptiveSessionViewModel;
+    private readonly IStudentStateRepository _studentStateRepository;
 
     [ObservableProperty]
     private string _systemInfo = "Loading...";
@@ -28,15 +28,14 @@ public partial class DebugViewModel : ObservableObject
         IKnowledgeUnitRepository knowledgeUnitRepository,
         IItemRepository itemRepository,
         ILessonPlanRepository lessonPlanRepository,
-        AdaptiveSessionViewModel adaptiveSessionViewModel)
+        IStudentStateRepository studentStateRepository)
     {
         _configuration = configuration;
         _knowledgeUnitRepository = knowledgeUnitRepository;
         _itemRepository = itemRepository;
         _lessonPlanRepository = lessonPlanRepository;
-        _adaptiveSessionViewModel = adaptiveSessionViewModel;
+        _studentStateRepository = studentStateRepository;
 
-        // Load initial data
         Refresh();
     }
 
@@ -45,7 +44,7 @@ public partial class DebugViewModel : ObservableObject
     {
         await LoadSystemInfoAsync();
         await LoadRepositoryStatsAsync();
-        LoadSessionDetails();
+        await LoadSessionDetailsAsync();
     }
 
     private void Refresh()
@@ -60,7 +59,7 @@ public partial class DebugViewModel : ObservableObject
         var modelName = _configuration.GetValue<string>("Gemini:ModelName") ?? "N/A";
 
         SystemInfo = $"App Version: {version}\nGemini API Enabled: {useGemini}\nModel Name: {modelName}";
-                     
+
         return Task.CompletedTask;
     }
 
@@ -80,15 +79,16 @@ public partial class DebugViewModel : ObservableObject
         }
     }
 
-    private void LoadSessionDetails()
+    private async Task LoadSessionDetailsAsync()
     {
-        if (_adaptiveSessionViewModel.IsSessionActive)
+        try
         {
-            CurrentSessionDetails = $"Active Session: Yes\nLearner: {_adaptiveSessionViewModel.LearnerName}\nQuestions Answered: {_adaptiveSessionViewModel.QuestionsAnswered}\nCurrent Theta: {_adaptiveSessionViewModel.CurrentTheta:F2}\nSE: {_adaptiveSessionViewModel.StandardError:F2}";
+            var students = await _studentStateRepository.GetAllAsync();
+            CurrentSessionDetails = $"Students: {students.Count}\nPersonalized Learning System: Active";
         }
-        else
+        catch
         {
-            CurrentSessionDetails = "No active session.";
+            CurrentSessionDetails = "No student data available.";
         }
     }
 }

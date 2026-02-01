@@ -11,7 +11,7 @@ namespace CatAdaptive.App.ViewModels;
 
 public partial class UploadViewModel : ObservableObject
 {
-    private readonly LearningFlowService _learningFlowService;
+    private readonly ContentIngestionService _contentIngestionService;
     private readonly IDialogService _dialogService;
 
     [ObservableProperty]
@@ -32,9 +32,9 @@ public partial class UploadViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSuccess;
 
-    public UploadViewModel(LearningFlowService learningFlowService, IDialogService dialogService)
+    public UploadViewModel(ContentIngestionService contentIngestionService, IDialogService dialogService)
     {
-        _learningFlowService = learningFlowService;
+        _contentIngestionService = contentIngestionService;
         _dialogService = dialogService;
     }
 
@@ -74,7 +74,7 @@ public partial class UploadViewModel : ObservableObject
 
         try
         {
-            var result = await _learningFlowService.IngestAsync(SelectedFilePath);
+            var result = await _contentIngestionService.IngestAsync(SelectedFilePath);
             KnowledgeUnitsCreated = result.KnowledgeUnitsCreated;
             ItemsGenerated = result.ItemsGenerated;
             StatusMessage = $"Success! Created {result.KnowledgeUnitsCreated} knowledge units and {result.ItemsGenerated} items.";
@@ -91,5 +91,15 @@ public partial class UploadViewModel : ObservableObject
         {
             IsProcessing = false;
         }
+    }
+
+    [RelayCommand]
+    private void ClearFile()
+    {
+        SelectedFilePath = null;
+        StatusMessage = null;
+        IsSuccess = false;
+        KnowledgeUnitsCreated = 0;
+        ItemsGenerated = 0;
     }
 }
