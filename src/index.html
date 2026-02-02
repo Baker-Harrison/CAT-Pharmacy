@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CAT-Pharmacy Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">CP</div>
+          <div>
+            <div class="brand-name">CAT-Pharmacy</div>
+            <div class="brand-sub">Adaptive knowledge studio</div>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-item active">Home</button>
+          <button class="nav-item">Ingest</button>
+          <button class="nav-item">Lessons</button>
+          <button class="nav-item">CAT Sessions</button>
+          <button class="nav-item">Analytics</button>
+        </nav>
+
+        <div class="sidebar-card">
+          <div class="sidebar-card-title">Active Knowledge Graph</div>
+          <div class="sidebar-card-value">
+            <span id="sidebarNodeCount">0</span> nodes
+          </div>
+          <div class="sidebar-card-detail">
+            <span id="sidebarEdgeCount">0</span> edges mapped
+          </div>
+        </div>
+
+        <div class="sidebar-footer">
+          <button class="primary" id="syncButton">Sync with Python Backend</button>
+          <div class="sync-status" id="syncStatus">Ready to sync</div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="main-header">
+          <div>
+            <div class="pill">Home</div>
+            <h1>Learning Dashboard</h1>
+            <p class="subtitle">
+              Monitor graph coverage, mastery signals, and recent study activity before launching a CAT session.
+            </p>
+          </div>
+          <div class="header-actions">
+            <button class="ghost" id="openUpload">Open ingestion pipeline</button>
+            <button class="secondary">Review objectives</button>
+          </div>
+        </header>
+
+        <section class="upload-grid" id="uploadView">
+          <div class="card upload-card">
+            <div class="card-title">Upload PPTX</div>
+            <div class="upload-dropzone" id="uploadDropzone" data-state="idle">
+              <input type="file" id="uploadInput" accept=".pptx" />
+              <div class="upload-icon">UP</div>
+              <div class="upload-title">Drag & drop a PowerPoint deck</div>
+              <div class="upload-sub">or click to browse your files</div>
+              <div class="upload-meta" id="uploadFileName">No file selected</div>
+              <div class="upload-status" id="uploadStatus" data-tone="neutral">Ready to ingest</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Ingestion Checklist</div>
+            <div class="action-grid">
+              <div class="action-item">
+                <div class="action-title">Source validation</div>
+                <div class="action-sub">Confirm the deck is final and contains learning objectives.</div>
+              </div>
+              <div class="action-item">
+                <div class="action-title">Knowledge unit extraction</div>
+                <div class="action-sub">Parser will map slides into knowledge units and key points.</div>
+              </div>
+              <div class="action-item">
+                <div class="action-title">Graph refresh</div>
+                <div class="action-sub">Nodes and edges update automatically after ingestion.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="summary-grid">
+          <div class="card highlight">
+            <div class="card-title">Graph Totals</div>
+            <div class="metric-row">
+              <div>
+                <div class="metric-value" id="nodeCount">0</div>
+                <div class="metric-label">Nodes</div>
+              </div>
+              <div>
+                <div class="metric-value" id="edgeCount">0</div>
+                <div class="metric-label">Edges</div>
+              </div>
+            </div>
+            <div class="metric-note">Live snapshot from the Python data store.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Mastery Snapshot</div>
+            <div class="mastery-list" id="masteryList"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Learning Pulse</div>
+            <div class="pulse-title" id="pulseSummary">Waiting for content ingestion.</div>
+            <div class="pulse-sub">Adaptive sessions will rely on updated node coverage.</div>
+            <div class="pulse-bar">
+              <span></span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Knowledge Graph Source</div>
+            <div class="source-label" id="graphSource">Awaiting sync</div>
+            <div class="source-sub">Last updated</div>
+            <div class="source-date" id="lastUpdated">Not available</div>
+          </div>
+        </section>
+
+        <section class="details-grid">
+          <div class="card">
+            <div class="card-title">Recently Studied Topics</div>
+            <div class="recent-list" id="recentTopics"></div>
+          </div>
+
+          <div class="stack">
+            <div class="card">
+              <div class="card-title">Node Types</div>
+              <div class="type-list" id="typeList"></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Session Launch Checklist</div>
+              <ul class="checklist">
+                <li>Confirm ingestion pipeline is synced</li>
+                <li>Review objectives for the next cohort</li>
+                <li>Validate item bank coverage by topic</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

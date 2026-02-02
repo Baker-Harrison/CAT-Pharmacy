@@ -1,0 +1,15 @@
+{
+  "name": "cat-pharmacy-electron",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "start:dev": "electron .",
+    "lint": "echo 'No lint configured'"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0"
+  }
+}
