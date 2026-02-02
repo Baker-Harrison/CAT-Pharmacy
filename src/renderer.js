@@ -12,6 +12,13 @@ function formatTimestamp(value) {
   return date.toLocaleString();
 }
 
+function formatTimestampOr(value, fallback) {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date.toLocaleString();
+}
+
 function toNumber(value, fallback = 0) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = Number.parseFloat(value);
@@ -525,6 +532,7 @@ function createDashboardRenderer(rootDocument) {
     sidebarEdgeCountLabel: rootDocument.querySelector("#sidebarEdgeCount"),
     graphSourceLabel: rootDocument.querySelector("#graphSource"),
     lastUpdatedLabel: rootDocument.querySelector("#lastUpdated"),
+    lastStudiedLabel: rootDocument.querySelector("#lastStudied"),
     typeList: rootDocument.querySelector("#typeList"),
     pulseSummary: rootDocument.querySelector("#pulseSummary"),
     masteryList: rootDocument.querySelector("#masteryList"),
@@ -669,6 +677,9 @@ function createDashboardRenderer(rootDocument) {
     }
     if (elements.lastUpdatedLabel) {
       elements.lastUpdatedLabel.textContent = formatTimestamp(summary?.lastUpdated);
+    }
+    if (elements.lastStudiedLabel) {
+      elements.lastStudiedLabel.textContent = formatTimestampOr(summary?.lastUpdated, "Never");
     }
 
     renderTypeList(summary?.nodeTypes);
