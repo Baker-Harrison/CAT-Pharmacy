@@ -21,6 +21,353 @@ function getValue(source, ...keys) {
   return undefined;
 }
 
+class InteractiveGraph {
+  constructor(options) {
+    if (!options || !options.container) {
+      throw new Error("InteractiveGraph requires a container element.");
+    }
+    this.container = options.container;
+    this.document =
+      options.rootDocument || this.container.ownerDocument || (typeof document !== "undefined" ? document : null);
+    this.width = toNumber(options.width, 640);
+    this.height = toNumber(options.height, 360);
+    this.padding = toNumber(options.padding, 50);
+    this.sampleCount = Math.max(16, toNumber(options.sampleCount, 80));
+    this.xLabel = options.xLabel || "Time";
+    this.yLabel = options.yLabel || "Response";
+    this.xRange = Array.isArray(options.xRange) ? options.xRange : [0, 12];
+    this.yRange = Array.isArray(options.yRange) ? options.yRange : null;
+    this.functionLogic = options.functionLogic || "A / Vd * exp(-k * t)";
+    this.parameters = Array.isArray(options.parameters) ? options.parameters : [];
+    this.paramState = {};
+    this.controls = new Map();
+    this.compiledFn = this.compileFunction(this.functionLogic);
+    this.build();
+    this.updateCurve();
+  }
+
+  compileFunction(formula) {
+    const raw = String(formula || "");
+    if (!raw.trim()) {
+      return () => 0;
+    }
+    let expression = raw;
+    expression = expression.replace(/\bexp\s*\(/gi, "Math.exp(");
+    expression = expression.replace(/\bsqrt\s*\(/gi, "Math.sqrt(");
+    expression = expression.replace(/\blog\s*\(/gi, "Math.log(");
+    expression = expression.replace(/\bpi\b/gi, "Math.PI");
+    return new Function("t", "params", `const { ${Object.keys(this.paramState).join(", ")} } = params; return ${expression};`);
+  }
+
+  createSvgElement(tagName) {
+    if (this.document?.createElementNS) {
+      return this.document.createElementNS("http://www.w3.org/2000/svg", tagName);
+    }
+    return this.document?.createElement ? this.document.createElement(tagName) : null;
+  }
+
+  build() {
+    if (!this.container) return;
+    this.container.innerHTML = "";
+    this.container.classList?.add("interactive-graph");
+
+    this.svg = this.createSvgElement("svg");
+    if (!this.svg) return;
+    this.svg.setAttribute("viewBox", `0 0 ${this.width} ${this.height}`);
+    this.svg.setAttribute("width", "100%");
+    this.svg.setAttribute("height", "100%");
+    this.svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+    const defs = this.createSvgElement("defs");
+    if (defs) {
+      const gradient = this.createSvgElement("linearGradient");
+      if (gradient) {
+        gradient.setAttribute("id", "curve-gradient");
+        gradient.setAttribute("x1", "0%");
+        gradient.setAttribute("y1", "0%");
+        gradient.setAttribute("x2", "100%");
+        gradient.setAttribute("y2", "0%");
+        const stopA = this.createSvgElement("stop");
+        if (stopA) {
+          stopA.setAttribute("offset", "0%");
+          stopA.setAttribute("stop-color", "var(--lab-accent)");
+          gradient.appendChild(stopA);
+        }
+        const stopB = this.createSvgElement("stop");
+        if (stopB) {
+          stopB.setAttribute("offset", "100%");
+          stopB.setAttribute("stop-color", "var(--lab-accent-strong)");
+          gradient.appendChild(stopB);
+        }
+        defs.appendChild(gradient);
+      }
+      this.svg.appendChild(defs);
+    }
+
+    this.gridGroup = this.createSvgElement("g");
+    this.axisGroup = this.createSvgElement("g");
+    this.pathGroup = this.createSvgElement("g");
+    if (this.gridGroup) this.svg.appendChild(this.gridGroup);
+    if (this.axisGroup) this.svg.appendChild(this.axisGroup);
+    if (this.pathGroup) this.svg.appendChild(this.pathGroup);
+
+    this.curvePath = this.createSvgElement("path");
+    if (this.curvePath) {
+      this.curvePath.setAttribute("fill", "none");
+      this.curvePath.setAttribute("stroke", "url(#curve-gradient)");
+      this.curvePath.setAttribute("stroke-width", "3");
+      this.curvePath.setAttribute("stroke-linecap", "round");
+      this.curvePath.setAttribute("stroke-linejoin", "round");
+      this.pathGroup?.appendChild(this.curvePath);
+    }
+
+    this.controlPoints = [];
+    for (let i = 0; i < 3; i += 1) {
+      const point = this.createSvgElement("circle");
+      if (point) {
+        point.setAttribute("r", "4");
+        point.setAttribute("fill", "var(--lab-point)");
+        point.setAttribute("stroke", "var(--lab-point-stroke)");
+        point.setAttribute("stroke-width", "2");
+        this.pathGroup?.appendChild(point);
+        this.controlPoints.push(point);
+      }
+    }
+
+    this.container.appendChild(this.svg);
+    this.controlPanel = this.document?.createElement ? this.document.createElement("div") : null;
+    if (this.controlPanel) {
+      this.controlPanel.className = "interactive-graph-controls";
+      this.container.appendChild(this.controlPanel);
+      this.buildControls();
+    }
+  }
+
+  buildControls() {
+    if (!this.controlPanel) return;
+    this.controlPanel.innerHTML = "";
+    this.controls.clear();
+
+    this.parameters.forEach((parameter) => {
+      if (!parameter || !parameter.name) return;
+      const value = toNumber(parameter.value, 0);
+      this.paramState[parameter.name] = value;
+
+      const wrapper = this.document.createElement("div");
+      wrapper.className = "interactive-control";
+
+      const label = this.document.createElement("div");
+      label.className = "interactive-control-label";
+      label.textContent = parameter.label || parameter.name;
+
+      const valueLabel = this.document.createElement("div");
+      valueLabel.className = "interactive-control-value";
+      valueLabel.textContent = value.toFixed(parameter.precision ?? 2);
+
+      const input = this.document.createElement("input");
+      input.type = "range";
+      input.min = parameter.min ?? 0;
+      input.max = parameter.max ?? 10;
+      input.step = parameter.step ?? 0.1;
+      input.value = String(value);
+
+      input.addEventListener("input", (event) => {
+        const nextValue = toNumber(event.target?.value, value);
+        this.updateParameter(parameter.name, nextValue);
+      });
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(valueLabel);
+      wrapper.appendChild(input);
+      this.controlPanel.appendChild(wrapper);
+      this.controls.set(parameter.name, { input, valueLabel, precision: parameter.precision ?? 2 });
+    });
+
+    this.compiledFn = this.compileFunction(this.functionLogic);
+  }
+
+  updateParameter(name, value) {
+    if (!name || !Number.isFinite(value)) return;
+    this.paramState[name] = value;
+    const control = this.controls.get(name);
+    if (control?.valueLabel) {
+      control.valueLabel.textContent = value.toFixed(control.precision);
+    }
+    if (control?.input) {
+      control.input.value = String(value);
+    }
+    this.updateCurve();
+  }
+
+  updateFunctionLogic(formula) {
+    this.functionLogic = formula || this.functionLogic;
+    this.compiledFn = this.compileFunction(this.functionLogic);
+    this.updateCurve();
+  }
+
+  generatePoints() {
+    const [xMin, xMax] = this.xRange;
+    const points = [];
+    for (let i = 0; i <= this.sampleCount; i += 1) {
+      const t = xMin + ((xMax - xMin) * i) / this.sampleCount;
+      let y = 0;
+      try {
+        y = toNumber(this.compiledFn(t, this.paramState), 0);
+      } catch (error) {
+        y = 0;
+      }
+      points.push({ t, y });
+    }
+    return points;
+  }
+
+  updateAxes(yMax) {
+    if (!this.axisGroup) return;
+    this.axisGroup.innerHTML = "";
+    if (this.gridGroup?.replaceChildren) {
+      this.gridGroup.replaceChildren();
+    } else if (this.gridGroup) {
+      this.gridGroup.innerHTML = "";
+    }
+
+    const left = this.padding;
+    const right = this.width - this.padding;
+    const top = this.padding;
+    const bottom = this.height - this.padding;
+
+    const xAxis = this.createSvgElement("line");
+    const yAxis = this.createSvgElement("line");
+    if (xAxis) {
+      xAxis.setAttribute("x1", left);
+      xAxis.setAttribute("y1", bottom);
+      xAxis.setAttribute("x2", right);
+      xAxis.setAttribute("y2", bottom);
+      xAxis.setAttribute("stroke", "var(--lab-axis)");
+      xAxis.setAttribute("stroke-width", "2");
+      this.axisGroup.appendChild(xAxis);
+    }
+    if (yAxis) {
+      yAxis.setAttribute("x1", left);
+      yAxis.setAttribute("y1", bottom);
+      yAxis.setAttribute("x2", left);
+      yAxis.setAttribute("y2", top);
+      yAxis.setAttribute("stroke", "var(--lab-axis)");
+      yAxis.setAttribute("stroke-width", "2");
+      this.axisGroup.appendChild(yAxis);
+    }
+
+    const xLabel = this.createSvgElement("text");
+    if (xLabel) {
+      xLabel.setAttribute("x", right);
+      xLabel.setAttribute("y", bottom + 36);
+      xLabel.setAttribute("text-anchor", "end");
+      xLabel.setAttribute("fill", "var(--lab-axis-label)");
+      xLabel.setAttribute("font-size", "12");
+      xLabel.textContent = this.xLabel;
+      this.axisGroup.appendChild(xLabel);
+    }
+
+    const yLabel = this.createSvgElement("text");
+    if (yLabel) {
+      yLabel.setAttribute("x", left - 36);
+      yLabel.setAttribute("y", top - 6);
+      yLabel.setAttribute("text-anchor", "start");
+      yLabel.setAttribute("fill", "var(--lab-axis-label)");
+      yLabel.setAttribute("font-size", "12");
+      yLabel.textContent = this.yLabel;
+      this.axisGroup.appendChild(yLabel);
+    }
+
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i += 1) {
+      const t = i / ticks;
+      const x = left + (right - left) * t;
+      const y = bottom - (bottom - top) * t;
+      const gridX = this.createSvgElement("line");
+      const gridY = this.createSvgElement("line");
+      if (gridX) {
+        gridX.setAttribute("x1", x);
+        gridX.setAttribute("y1", top);
+        gridX.setAttribute("x2", x);
+        gridX.setAttribute("y2", bottom);
+        gridX.setAttribute("stroke", "var(--lab-grid)");
+        gridX.setAttribute("stroke-width", "1");
+        this.gridGroup?.appendChild(gridX);
+      }
+      if (gridY) {
+        gridY.setAttribute("x1", left);
+        gridY.setAttribute("y1", y);
+        gridY.setAttribute("x2", right);
+        gridY.setAttribute("y2", y);
+        gridY.setAttribute("stroke", "var(--lab-grid)");
+        gridY.setAttribute("stroke-width", "1");
+        this.gridGroup?.appendChild(gridY);
+      }
+    }
+
+    const yMaxLabel = this.createSvgElement("text");
+    if (yMaxLabel) {
+      yMaxLabel.setAttribute("x", left - 10);
+      yMaxLabel.setAttribute("y", top + 4);
+      yMaxLabel.setAttribute("text-anchor", "end");
+      yMaxLabel.setAttribute("fill", "var(--lab-axis-label)");
+      yMaxLabel.setAttribute("font-size", "11");
+      yMaxLabel.textContent = yMax.toFixed(1);
+      this.axisGroup.appendChild(yMaxLabel);
+    }
+  }
+
+  updateCurve() {
+    if (!this.curvePath) return;
+    const points = this.generatePoints();
+    const yMin = this.yRange ? this.yRange[0] : 0;
+    let yMax = this.yRange ? this.yRange[1] : 0;
+    if (!this.yRange) {
+      yMax = Math.max(1, ...points.map((point) => point.y));
+    }
+
+    this.updateAxes(yMax);
+
+    const left = this.padding;
+    const right = this.width - this.padding;
+    const top = this.padding;
+    const bottom = this.height - this.padding;
+    const xSpan = this.xRange[1] - this.xRange[0] || 1;
+    const ySpan = yMax - yMin || 1;
+
+    const path = points
+      .map((point, index) => {
+        const x = left + ((point.t - this.xRange[0]) / xSpan) * (right - left);
+        const y = bottom - ((point.y - yMin) / ySpan) * (bottom - top);
+        const command = index === 0 ? "M" : "L";
+        return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(" ");
+
+    this.curvePath.setAttribute("d", path);
+    this.updateControlPoints(points, left, right, top, bottom, xSpan, ySpan, yMin);
+  }
+
+  updateControlPoints(points, left, right, top, bottom, xSpan, ySpan, yMin) {
+    if (!this.controlPoints?.length || points.length === 0) return;
+    const indices = [0, Math.floor(points.length / 2), points.length - 1];
+    indices.forEach((index, slot) => {
+      const point = points[index];
+      const cx = left + ((point.t - this.xRange[0]) / xSpan) * (right - left);
+      const cy = bottom - ((point.y - yMin) / ySpan) * (bottom - top);
+      const circle = this.controlPoints[slot];
+      if (circle) {
+        circle.setAttribute("cx", cx.toFixed(2));
+        circle.setAttribute("cy", cy.toFixed(2));
+      }
+    });
+  }
+
+  getPathData() {
+    return this.curvePath?.getAttribute?.("d") || "";
+  }
+}
+
 function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
   const elements = {
     dropzone: rootDocument.querySelector("#uploadDropzone"),
@@ -720,10 +1067,13 @@ function createLearningRenderer(rootDocument, api) {
     startAssessment: rootDocument.querySelector("#learningStartAssessment"),
     submitAnswer: rootDocument.querySelector("#learningSubmitAnswer"),
     continueButton: rootDocument.querySelector("#learningContinue"),
+    visualLab: rootDocument.querySelector("#visualLab"),
+    visualFormula: rootDocument.querySelector("#visualLabFormula"),
   };
 
   const machine = createLearningStateMachine();
   const emptyPrompt = "Review the concept summary and begin the quick check when ready.";
+  let visualGraph = null;
 
   function setFeedback(message, tone = "neutral") {
     if (!elements.feedback) return;
@@ -877,6 +1227,27 @@ function createLearningRenderer(rootDocument, api) {
     bindEvents();
     render();
     startSession();
+    if (elements.visualLab) {
+      const functionLogic =
+        elements.visualLab.dataset?.functionLogic ||
+        "A / Vd * exp(-k * t)";
+      if (elements.visualFormula) {
+        elements.visualFormula.textContent = functionLogic;
+      }
+      visualGraph = new InteractiveGraph({
+        rootDocument,
+        container: elements.visualLab,
+        functionLogic,
+        xLabel: "Time (hr)",
+        yLabel: "Concentration",
+        xRange: [0, 12],
+        parameters: [
+          { name: "A", label: "Dose (A)", min: 2, max: 12, step: 0.5, value: 8, precision: 2 },
+          { name: "k", label: "Elimination (k)", min: 0.05, max: 1.2, step: 0.05, value: 0.28, precision: 2 },
+          { name: "Vd", label: "Volume (Vd)", min: 5, max: 30, step: 1, value: 12, precision: 1 },
+        ],
+      });
+    }
   }
 
   return {
@@ -910,5 +1281,6 @@ if (typeof module !== "undefined" && module.exports) {
     createLearningRenderer,
     createLearningStateMachine,
     formatTimestamp,
+    InteractiveGraph,
   };
 }
