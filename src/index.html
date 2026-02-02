@@ -51,9 +51,9 @@
         <header class="main-header">
           <div>
             <div class="pill">Home</div>
-            <h1>Knowledge Graph Overview</h1>
+            <h1>Learning Dashboard</h1>
             <p class="subtitle">
-              Track the current graph, ingestion health, and adaptive readiness before launching sessions.
+              Monitor graph coverage, mastery signals, and recent study activity before launching a CAT session.
             </p>
           </div>
           <div class="header-actions">
@@ -79,6 +79,11 @@
           </div>
 
           <div class="card">
+            <div class="card-title">Mastery Snapshot</div>
+            <div class="mastery-list" id="masteryList"></div>
+          </div>
+
+          <div class="card">
             <div class="card-title">Learning Pulse</div>
             <div class="pulse-title" id="pulseSummary">Waiting for content ingestion.</div>
             <div class="pulse-sub">Adaptive sessions will rely on updated node coverage.</div>
@@ -93,38 +98,26 @@
             <div class="source-sub">Last updated</div>
             <div class="source-date" id="lastUpdated">Not available</div>
           </div>
-
-          <div class="card">
-            <div class="card-title">Session Launch Checklist</div>
-            <ul class="checklist">
-              <li>Confirm ingestion pipeline is synced</li>
-              <li>Review objectives for the next cohort</li>
-              <li>Validate item bank coverage by topic</li>
-            </ul>
-          </div>
         </section>
 
         <section class="details-grid">
           <div class="card">
-            <div class="card-title">Node Types</div>
-            <div class="type-list" id="typeList"></div>
+            <div class="card-title">Recently Studied Topics</div>
+            <div class="recent-list" id="recentTopics"></div>
           </div>
 
-          <div class="card">
-            <div class="card-title">Next Actions</div>
-            <div class="action-grid">
-              <div class="action-item">
-                <div class="action-title">Ingest new PPTX</div>
-                <div class="action-sub">Refresh knowledge units and objectives.</div>
-              </div>
-              <div class="action-item">
-                <div class="action-title">Generate adaptive items</div>
-                <div class="action-sub">Build a fresh item pool for CAT sessions.</div>
-              </div>
-              <div class="action-item">
-                <div class="action-title">Review graph gaps</div>
-                <div class="action-sub">Identify missing prerequisite links.</div>
-              </div>
+          <div class="stack">
+            <div class="card">
+              <div class="card-title">Node Types</div>
+              <div class="type-list" id="typeList"></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Session Launch Checklist</div>
+              <ul class="checklist">
+                <li>Confirm ingestion pipeline is synced</li>
+                <li>Review objectives for the next cohort</li>
+                <li>Validate item bank coverage by topic</li>
+              </ul>
             </div>
           </div>
         </section>

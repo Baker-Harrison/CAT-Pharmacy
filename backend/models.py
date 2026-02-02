@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 from uuid import UUID, uuid4
 
 
@@ -151,3 +152,181 @@ class DomainKnowledgeGraph:
 
         unique = {node.id: node for node in related if node is not None}
         return list(unique.values())
+
+
+DEFAULT_MASTERY_LEVELS = ["Advanced", "Proficient", "Developing", "Novice", "Unknown"]
+
+
+@dataclass(frozen=True)
+class GraphSummary:
+    node_count: int
+    edge_count: int
+    node_types: Dict[str, int]
+    mastery_levels: Dict[str, int]
+    source: str
+    last_updated: Optional[str]
+    recent_topics: List[Dict[str, str]]
+
+    @classmethod
+    def empty(cls) -> "GraphSummary":
+        return cls(0, 0, {}, {level: 0 for level in DEFAULT_MASTERY_LEVELS}, "No graph data found", None, [])
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Optional[dict],
+        source: str,
+        last_updated: Optional[str],
+        student_state: Optional[dict],
+        recent_limit: int = 6,
+    ) -> "GraphSummary":
+        graph_payload = payload if isinstance(payload, dict) else {}
+        nodes = _extract_items(graph_payload.get("Nodes") or graph_payload.get("nodes"))
+        edges = _extract_items(graph_payload.get("Edges") or graph_payload.get("edges"))
+        node_types = _build_node_type_counts(nodes)
+        mastery_levels, recent_topics = _build_mastery_snapshot(student_state, nodes, recent_limit)
+        return cls(len(nodes), len(edges), node_types, mastery_levels, source, last_updated, recent_topics)
+
+    def to_payload(self) -> dict:
+        return {
+            "nodeCount": self.node_count,
+            "edgeCount": self.edge_count,
+            "nodeTypes": self.node_types,
+            "masteryLevels": self.mastery_levels,
+            "source": self.source,
+            "lastUpdated": self.last_updated,
+            "recentTopics": self.recent_topics,
+        }
+
+
+def _build_node_type_counts(nodes: List[dict]) -> Dict[str, int]:
+    type_counts: Dict[str, int] = {}
+    for node in nodes:
+        node_type = _get_value(node, "Type", "type")
+        if isinstance(node_type, dict):
+            node_type = _get_value(node_type, "Value", "value")
+        if node_type is None:
+            node_type = DomainNodeType.CONCEPT.value
+        type_name = str(node_type)
+        type_counts[type_name] = type_counts.get(type_name, 0) + 1
+    return type_counts
+
+
+def _build_mastery_snapshot(
+    student_state: Optional[dict],
+    nodes: List[dict],
+    recent_limit: int,
+) -> tuple[Dict[str, int], List[Dict[str, str]]]:
+    mastery_levels = {level: 0 for level in DEFAULT_MASTERY_LEVELS}
+    if not isinstance(student_state, dict):
+        return mastery_levels, []
+
+    mastery_data = student_state.get("knowledgeMasteries") or student_state.get("KnowledgeMasteries")
+    mastery_items = _extract_items(mastery_data)
+
+    nodes_by_id: Dict[str, str] = {}
+    for node in nodes:
+        node_id = _get_value(node, "id", "Id")
+        title = _get_value(node, "title", "Title") or "Untitled topic"
+        if node_id:
+            nodes_by_id[str(node_id)] = title
+
+    recent_candidates: List[tuple[datetime, Dict[str, str]]] = []
+
+    for mastery in mastery_items:
+        level_value = _get_value(mastery, "level", "Level")
+        level_name = _normalize_mastery_level(level_value)
+        mastery_levels[level_name] = mastery_levels.get(level_name, 0) + 1
+
+        last_assessed_value = _get_value(mastery, "lastAssessed", "LastAssessed")
+        last_assessed = _parse_timestamp(last_assessed_value)
+        if last_assessed is None:
+            continue
+
+        node_id = _get_value(mastery, "domainNodeId", "DomainNodeId", "nodeId", "NodeId")
+        title = nodes_by_id.get(str(node_id)) if node_id else None
+        if not title:
+            title = "Untitled topic"
+
+        recent_candidates.append(
+            (
+                last_assessed,
+                {
+                    "title": title,
+                    "level": level_name,
+                    "lastAssessed": _format_timestamp(last_assessed),
+                },
+            )
+        )
+
+    recent_candidates.sort(key=lambda item: item[0], reverse=True)
+    recent_topics = [topic for _, topic in recent_candidates[:recent_limit]]
+    return mastery_levels, recent_topics
+
+
+def _extract_items(raw: Any) -> List[dict]:
+    if raw is None:
+        return []
+    if isinstance(raw, dict):
+        return [value for value in raw.values() if isinstance(value, dict)]
+    if isinstance(raw, list):
+        return [item for item in raw if isinstance(item, dict)]
+    return []
+
+
+def _get_value(source: dict, *keys: str):
+    for key in keys:
+        if key in source:
+            return source[key]
+    return None
+
+
+def _normalize_mastery_level(level_value: Any) -> str:
+    if isinstance(level_value, str):
+        trimmed = level_value.strip()
+        if trimmed.isdigit():
+            level_value = int(trimmed)
+        else:
+            canonical = trimmed.capitalize()
+            for level in DEFAULT_MASTERY_LEVELS:
+                if level.lower() == trimmed.lower():
+                    return level
+            return canonical or "Unknown"
+
+    if isinstance(level_value, int):
+        mapping = {
+            4: "Advanced",
+            3: "Proficient",
+            2: "Developing",
+            1: "Novice",
+            0: "Unknown",
+        }
+        return mapping.get(level_value, "Unknown")
+
+    return "Unknown"
+
+
+def _parse_timestamp(value: Any) -> Optional[datetime]:
+    if value in (None, "", 0):
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.utcfromtimestamp(value)
+        except (OSError, ValueError):
+            return None
+    if isinstance(value, str):
+        cleaned = value.replace("Z", "+00:00")
+        try:
+            parsed = datetime.fromisoformat(cleaned)
+            if parsed.year <= 1:
+                return None
+            return parsed
+        except ValueError:
+            return None
+    return None
+
+
+def _format_timestamp(value: datetime) -> str:
+    if value.tzinfo is None:
+        return value.isoformat() + "Z"
+    return value.astimezone().isoformat()

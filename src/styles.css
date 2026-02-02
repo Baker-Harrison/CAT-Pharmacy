@@ -1,16 +1,16 @@
 :root {
-  --bg: #0f1412;
-  --bg-alt: #131a17;
-  --panel: #181f1b;
-  --panel-strong: #1f2a23;
+  --bg: #0b0f12;
+  --bg-alt: #10161b;
+  --panel: #161e24;
+  --panel-strong: #1d2730;
   --border: rgba(255, 255, 255, 0.08);
-  --text-primary: #f4f7f5;
-  --text-secondary: #c5d0c9;
-  --text-muted: #8a948d;
-  --accent: #7cf2bf;
-  --accent-strong: #2fd48f;
-  --accent-glow: rgba(124, 242, 191, 0.18);
-  --warning: #f4c16d;
+  --text-primary: #f6f7f9;
+  --text-secondary: #c9d4dd;
+  --text-muted: #8f9ba7;
+  --accent: #58e1c1;
+  --accent-strong: #22c59a;
+  --accent-glow: rgba(88, 225, 193, 0.2);
+  --warning: #f2c57c;
   --shadow: 0 24px 60px rgba(7, 9, 8, 0.45);
 }
 
@@ -21,7 +21,7 @@
 body {
   margin: 0;
   font-family: "Manrope", "Space Grotesk", sans-serif;
-  background: radial-gradient(circle at top left, #1b241f, var(--bg)) fixed;
+  background: radial-gradient(circle at top left, #18212a, var(--bg)) fixed;
   color: var(--text-primary);
 }
 
@@ -36,7 +36,7 @@ body {
   flex-direction: column;
   gap: 32px;
   padding: 32px 24px;
-  background: linear-gradient(160deg, #111815 0%, #0d1210 100%);
+  background: linear-gradient(160deg, #10161d 0%, #0a0f14 100%);
   border-right: 1px solid var(--border);
 }
 
@@ -182,7 +182,7 @@ button:disabled {
   padding: 36px 40px 48px;
   display: grid;
   gap: 28px;
-  background: radial-gradient(circle at 20% 20%, rgba(124, 242, 191, 0.08), transparent 60%),
+  background: radial-gradient(circle at 20% 20%, rgba(88, 225, 193, 0.08), transparent 60%),
     linear-gradient(180deg, var(--bg-alt), var(--bg));
 }
 
@@ -233,7 +233,7 @@ h1 {
 
 .details-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   gap: 18px;
 }
 
@@ -280,6 +280,45 @@ h1 {
   font-size: 13px;
 }
 
+.mastery-list {
+  display: grid;
+  gap: 12px;
+}
+
+.mastery-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.mastery-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.mastery-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mastery-bar {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+.mastery-bar span {
+  display: block;
+  height: 100%;
+  width: var(--percent, 0%);
+  background: linear-gradient(90deg, rgba(88, 225, 193, 0.35), var(--accent));
+  transition: width 0.3s ease;
+}
+
 .pulse-title {
   font-size: 18px;
   font-weight: 600;
@@ -322,6 +361,76 @@ h1 {
 .source-date {
   font-size: 14px;
   margin-top: 6px;
+}
+
+.recent-list {
+  display: grid;
+  gap: 14px;
+}
+
+.recent-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+.recent-row--empty {
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.recent-details {
+  display: grid;
+  gap: 6px;
+}
+
+.recent-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.recent-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.recent-badge {
+  align-self: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.recent-badge[data-level="advanced"] {
+  background: rgba(88, 225, 193, 0.18);
+  color: var(--accent);
+}
+
+.recent-badge[data-level="proficient"] {
+  background: rgba(88, 225, 193, 0.12);
+  color: #86f1d5;
+}
+
+.recent-badge[data-level="developing"] {
+  background: rgba(242, 197, 124, 0.16);
+  color: var(--warning);
+}
+
+.recent-badge[data-level="novice"] {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+}
+
+.recent-badge[data-level="unknown"] {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
 }
 
 .checklist {
@@ -387,6 +496,11 @@ h1 {
 .action-sub {
   color: var(--text-secondary);
   font-size: 13px;
+}
+
+.stack {
+  display: grid;
+  gap: 18px;
 }
 
 @keyframes slide-up {

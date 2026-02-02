@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Iterable, List, Optional
 from uuid import UUID, uuid4
 
-from backend.models import DomainNodeType
+from backend.models import GraphSummary
 
 
 @dataclass(frozen=True)
@@ -299,42 +299,25 @@ class AdaptiveSession:
         return False
 
 
-@dataclass(frozen=True)
-class GraphSummary:
-    node_count: int
-    edge_count: int
-    node_types: Dict[str, int]
-    source: str
-    last_updated: Optional[str]
+def build_graph_summary(graph_path: Optional[Path], student_state_path: Optional[Path]) -> GraphSummary:
+    if graph_path is None or not graph_path.exists():
+        return GraphSummary.empty()
 
+    data = json.loads(graph_path.read_text(encoding="utf-8"))
+    student_state = None
+    if student_state_path is not None and student_state_path.exists():
+        try:
+            student_state = json.loads(student_state_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            student_state = None
 
-def build_graph_summary(path: Optional[Path]) -> GraphSummary:
-    if path is None or not path.exists():
-        return GraphSummary(0, 0, {}, "No graph data found", None)
-
-    data = json.loads(path.read_text(encoding="utf-8"))
-    nodes_data = data.get("Nodes") if isinstance(data, dict) else None
-    if nodes_data is None and isinstance(data, dict):
-        nodes_data = data.get("nodes")
-    edges_data = data.get("Edges") if isinstance(data, dict) else None
-    if edges_data is None and isinstance(data, dict):
-        edges_data = data.get("edges")
-
-    nodes = _extract_items(nodes_data)
-    edges = _extract_items(edges_data)
-
-    type_counts: Dict[str, int] = {}
-    for node in nodes:
-        node_type = _get_value(node, "Type", "type")
-        if isinstance(node_type, dict):
-            node_type = _get_value(node_type, "Value", "value")
-        if node_type is None:
-            node_type = DomainNodeType.CONCEPT.value
-        type_name = str(node_type)
-        type_counts[type_name] = type_counts.get(type_name, 0) + 1
-
-    last_updated = datetime.utcfromtimestamp(path.stat().st_mtime).isoformat() + "Z"
-    return GraphSummary(len(nodes), len(edges), type_counts, str(path), last_updated)
+    last_updated = datetime.utcfromtimestamp(graph_path.stat().st_mtime).isoformat() + "Z"
+    return GraphSummary.from_payload(
+        payload=data,
+        source=str(graph_path),
+        last_updated=last_updated,
+        student_state=student_state,
+    )
 
 
 def resolve_graph_path(data_dir: Optional[Path]) -> Optional[Path]:
@@ -355,6 +338,20 @@ def resolve_graph_path(data_dir: Optional[Path]) -> Optional[Path]:
     return None
 
 
+def resolve_student_state_path(data_dir: Optional[Path]) -> Optional[Path]:
+    if data_dir is None:
+        data_dir = _default_data_dir()
+
+    if data_dir is None or not data_dir.exists():
+        return None
+
+    states = sorted(data_dir.glob("student-state-*.json"), key=lambda p: p.stat().st_mtime)
+    if states:
+        return states[-1]
+
+    return None
+
+
 def _default_data_dir() -> Optional[Path]:
     env_dir = Path(str(Path.home()))
     if "CAT_DATA_DIR" in os.environ:
@@ -369,31 +366,8 @@ def _default_data_dir() -> Optional[Path]:
     return None
 
 
-def _extract_items(raw) -> List[dict]:
-    if raw is None:
-        return []
-    if isinstance(raw, dict):
-        return list(raw.values())
-    if isinstance(raw, list):
-        return [item for item in raw if isinstance(item, dict)]
-    return []
-
-
-def _get_value(source: dict, *keys: str):
-    for key in keys:
-        if key in source:
-            return source[key]
-    return None
-
-
 def _summary_to_payload(summary: GraphSummary) -> dict:
-    return {
-        "nodeCount": summary.node_count,
-        "edgeCount": summary.edge_count,
-        "nodeTypes": summary.node_types,
-        "source": summary.source,
-        "lastUpdated": summary.last_updated,
-    }
+    return summary.to_payload()
 
 
 def main() -> int:
@@ -405,7 +379,8 @@ def main() -> int:
     if args.summary:
         data_dir = Path(args.data_dir) if args.data_dir else None
         graph_path = resolve_graph_path(data_dir)
-        summary = build_graph_summary(graph_path)
+        student_state_path = resolve_student_state_path(data_dir)
+        summary = build_graph_summary(graph_path, student_state_path)
         print(json.dumps(_summary_to_payload(summary)))
         return 0
 
