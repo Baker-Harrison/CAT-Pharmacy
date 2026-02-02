@@ -1,47 +1,10 @@
-/**
- * CAT-Pharmacy Frontend Application Logic
- * Orchestrates UI state management, interactive graphing, and IPC communication.
- */
-
-const DEFAULT_LEVEL_ORDER = ["Advanced", "Proficient", "Developing", "Novice", "Unknown"];
+const DEFAULT_VIEW = "ingest";
 
 function formatTimestamp(value) {
-  if (!value) return "Not available";
+  if (!value) return "--";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not available";
+  if (Number.isNaN(date.getTime())) return "--";
   return date.toLocaleString();
-}
-
-function formatTimestampOr(value, fallback) {
-  if (!value) return fallback;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return fallback;
-  return date.toLocaleString();
-}
-
-function formatDurationMinutes(value) {
-  const minutes = Math.max(0, Math.round(toNumber(value, 0)));
-  if (minutes < 60) {
-    return `${minutes} minute${minutes === 1 ? "" : "s"}`;
-  }
-  const hours = minutes / 60;
-  const rounded = Math.round(hours * 10) / 10;
-  const display = Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1).replace(/\.0$/, "");
-  return `${display} hour${rounded === 1 ? "" : "s"}`;
-}
-
-function toNumber(value, fallback = 0) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function getValue(source, ...keys) {
-  if (!source || typeof source !== "object") return undefined;
-  for (const key of keys) {
-    if (key in source) return source[key];
-  }
-  return undefined;
 }
 
 function normalizeErrorMessage(error, fallback) {
@@ -51,630 +14,53 @@ function normalizeErrorMessage(error, fallback) {
   if (lower.includes("python_not_found") || lower.includes("python executable not found") || lower.includes("enoent")) {
     return "Python not found. Install Python 3 and restart CAT-Pharmacy.";
   }
-  if (
-    lower.includes("pptx_invalid") ||
-    lower.includes("pptx format invalid") ||
-    lower.includes("badzipfile") ||
-    lower.includes("file is not a zip file")
-  ) {
+  if (lower.includes("pptx") && (lower.includes("invalid") || lower.includes("badzipfile"))) {
     return "PPTX format invalid. Export a valid .pptx file and try again.";
   }
   if (lower.includes("database locked") || lower.includes("locked")) {
     return "Database locked. Please retry in a moment.";
   }
-  if (lower.includes("network") || lower.includes("disconnect")) {
-    return "Network connection lost. Check your connection and try again.";
-  }
   return message || fallback || "An unexpected error occurred.";
 }
 
-class InteractiveGraph {
-  constructor(options) {
-    if (!options || !options.container) {
-      throw new Error("InteractiveGraph requires a container element.");
-    }
-    this.container = options.container;
-    this.document =
-      options.rootDocument || this.container.ownerDocument || (typeof document !== "undefined" ? document : null);
-    this.width = toNumber(options.width, 640);
-    this.height = toNumber(options.height, 360);
-    this.padding = toNumber(options.padding, 50);
-    this.sampleCount = Math.max(16, toNumber(options.sampleCount, 80));
-    this.xLabel = options.xLabel || "Time";
-    this.yLabel = options.yLabel || "Response";
-    this.xRange = Array.isArray(options.xRange) ? options.xRange : [0, 12];
-    this.yRange = Array.isArray(options.yRange) ? options.yRange : null;
-    this.functionLogic = options.functionLogic || "A / Vd * exp(-k * t)";
-    this.parameters = Array.isArray(options.parameters) ? options.parameters : [];
-    this.paramState = {};
-    this.controls = new Map();
-    this.compiledFn = this.compileFunction(this.functionLogic);
-    this.build();
-    this.updateCurve();
-  }
+function setupNavigation(documentRoot) {
+  const navItems = Array.from(documentRoot.querySelectorAll(".nav-item"));
+  const views = {
+    ingest: documentRoot.querySelector("#ingestView"),
+    lessons: documentRoot.querySelector("#lessonsView"),
+    exams: documentRoot.querySelector("#examsView"),
+  };
 
-  compileFunction(formula) {
-    const raw = String(formula || "");
-    if (!raw.trim()) {
-      return () => 0;
-    }
-    let expression = raw;
-    expression = expression.replace(/\bexp\s*\(/gi, "Math.exp(");
-    expression = expression.replace(/\bsqrt\s*\(/gi, "Math.sqrt(");
-    expression = expression.replace(/\blog\s*\(/gi, "Math.log(");
-    expression = expression.replace(/\bpi\b/gi, "Math.PI");
-    return new Function("t", "params", `const { ${Object.keys(this.paramState).join(", ")} } = params; return ${expression};`);
-  }
-
-  createSvgElement(tagName) {
-    if (this.document?.createElementNS) {
-      return this.document.createElementNS("http://www.w3.org/2000/svg", tagName);
-    }
-    return this.document?.createElement ? this.document.createElement(tagName) : null;
-  }
-
-  build() {
-    if (!this.container) return;
-    this.container.innerHTML = "";
-    this.container.classList?.add("interactive-graph");
-
-    this.svg = this.createSvgElement("svg");
-    if (!this.svg) return;
-    this.svg.setAttribute("viewBox", `0 0 ${this.width} ${this.height}`);
-    this.svg.setAttribute("width", "100%");
-    this.svg.setAttribute("height", "100%");
-    this.svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-
-    const defs = this.createSvgElement("defs");
-    if (defs) {
-      const gradient = this.createSvgElement("linearGradient");
-      if (gradient) {
-        gradient.setAttribute("id", "curve-gradient");
-        gradient.setAttribute("x1", "0%");
-        gradient.setAttribute("y1", "0%");
-        gradient.setAttribute("x2", "100%");
-        gradient.setAttribute("y2", "0%");
-        const stopA = this.createSvgElement("stop");
-        if (stopA) {
-          stopA.setAttribute("offset", "0%");
-          stopA.setAttribute("stop-color", "var(--lab-accent)");
-          gradient.appendChild(stopA);
-        }
-        const stopB = this.createSvgElement("stop");
-        if (stopB) {
-          stopB.setAttribute("offset", "100%");
-          stopB.setAttribute("stop-color", "var(--lab-accent-strong)");
-          gradient.appendChild(stopB);
-        }
-        defs.appendChild(gradient);
-      }
-      this.svg.appendChild(defs);
-    }
-
-    this.gridGroup = this.createSvgElement("g");
-    this.axisGroup = this.createSvgElement("g");
-    this.pathGroup = this.createSvgElement("g");
-    if (this.gridGroup) this.svg.appendChild(this.gridGroup);
-    if (this.axisGroup) this.svg.appendChild(this.axisGroup);
-    if (this.pathGroup) this.svg.appendChild(this.pathGroup);
-
-    this.curvePath = this.createSvgElement("path");
-    if (this.curvePath) {
-      this.curvePath.setAttribute("fill", "none");
-      this.curvePath.setAttribute("stroke", "url(#curve-gradient)");
-      this.curvePath.setAttribute("stroke-width", "3");
-      this.curvePath.setAttribute("stroke-linecap", "round");
-      this.curvePath.setAttribute("stroke-linejoin", "round");
-      this.pathGroup?.appendChild(this.curvePath);
-    }
-
-    this.controlPoints = [];
-    for (let i = 0; i < 3; i += 1) {
-      const point = this.createSvgElement("circle");
-      if (point) {
-        point.setAttribute("r", "4");
-        point.setAttribute("fill", "var(--lab-point)");
-        point.setAttribute("stroke", "var(--lab-point-stroke)");
-        point.setAttribute("stroke-width", "2");
-        this.pathGroup?.appendChild(point);
-        this.controlPoints.push(point);
-      }
-    }
-
-    this.container.appendChild(this.svg);
-    this.controlPanel = this.document?.createElement ? this.document.createElement("div") : null;
-    if (this.controlPanel) {
-      this.controlPanel.className = "interactive-graph-controls";
-      this.container.appendChild(this.controlPanel);
-      this.buildControls();
-    }
-  }
-
-  buildControls() {
-    if (!this.controlPanel) return;
-    this.controlPanel.innerHTML = "";
-    this.controls.clear();
-
-    this.parameters.forEach((parameter) => {
-      if (!parameter || !parameter.name) return;
-      const value = toNumber(parameter.value, 0);
-      this.paramState[parameter.name] = value;
-
-      const wrapper = this.document.createElement("div");
-      wrapper.className = "interactive-control";
-
-      const label = this.document.createElement("div");
-      label.className = "interactive-control-label";
-      label.textContent = parameter.label || parameter.name;
-
-      const valueLabel = this.document.createElement("div");
-      valueLabel.className = "interactive-control-value";
-      valueLabel.textContent = value.toFixed(parameter.precision ?? 2);
-
-      const input = this.document.createElement("input");
-      input.type = "range";
-      input.min = parameter.min ?? 0;
-      input.max = parameter.max ?? 10;
-      input.step = parameter.step ?? 0.1;
-      input.value = String(value);
-
-      input.addEventListener("input", (event) => {
-        const nextValue = toNumber(event.target?.value, value);
-        this.updateParameter(parameter.name, nextValue);
-      });
-
-      wrapper.appendChild(label);
-      wrapper.appendChild(valueLabel);
-      wrapper.appendChild(input);
-      this.controlPanel.appendChild(wrapper);
-      this.controls.set(parameter.name, { input, valueLabel, precision: parameter.precision ?? 2 });
+  function setActiveView(viewId) {
+    Object.entries(views).forEach(([key, view]) => {
+      if (!view) return;
+      view.classList.toggle("is-active", key === viewId);
     });
-
-    this.compiledFn = this.compileFunction(this.functionLogic);
-  }
-
-  updateParameter(name, value) {
-    if (!name || !Number.isFinite(value)) return;
-    this.paramState[name] = value;
-    const control = this.controls.get(name);
-    if (control?.valueLabel) {
-      control.valueLabel.textContent = value.toFixed(control.precision);
-    }
-    if (control?.input) {
-      control.input.value = String(value);
-    }
-    this.updateCurve();
-  }
-
-  updateFunctionLogic(formula) {
-    this.functionLogic = formula || this.functionLogic;
-    this.compiledFn = this.compileFunction(this.functionLogic);
-    this.updateCurve();
-  }
-
-  generatePoints() {
-    const [xMin, xMax] = this.xRange;
-    const points = [];
-    for (let i = 0; i <= this.sampleCount; i += 1) {
-      const t = xMin + ((xMax - xMin) * i) / this.sampleCount;
-      let y = 0;
-      try {
-        y = toNumber(this.compiledFn(t, this.paramState), 0);
-      } catch (error) {
-        y = 0;
-      }
-      points.push({ t, y });
-    }
-    return points;
-  }
-
-  updateAxes(yMax) {
-    if (!this.axisGroup) return;
-    this.axisGroup.innerHTML = "";
-    if (this.gridGroup?.replaceChildren) {
-      this.gridGroup.replaceChildren();
-    } else if (this.gridGroup) {
-      this.gridGroup.innerHTML = "";
-    }
-
-    const left = this.padding;
-    const right = this.width - this.padding;
-    const top = this.padding;
-    const bottom = this.height - this.padding;
-
-    const xAxis = this.createSvgElement("line");
-    const yAxis = this.createSvgElement("line");
-    if (xAxis) {
-      xAxis.setAttribute("x1", left);
-      xAxis.setAttribute("y1", bottom);
-      xAxis.setAttribute("x2", right);
-      xAxis.setAttribute("y2", bottom);
-      xAxis.setAttribute("stroke", "var(--lab-axis)");
-      xAxis.setAttribute("stroke-width", "2");
-      this.axisGroup.appendChild(xAxis);
-    }
-    if (yAxis) {
-      yAxis.setAttribute("x1", left);
-      yAxis.setAttribute("y1", bottom);
-      yAxis.setAttribute("x2", left);
-      yAxis.setAttribute("y2", top);
-      yAxis.setAttribute("stroke", "var(--lab-axis)");
-      yAxis.setAttribute("stroke-width", "2");
-      this.axisGroup.appendChild(yAxis);
-    }
-
-    const xLabel = this.createSvgElement("text");
-    if (xLabel) {
-      xLabel.setAttribute("x", right);
-      xLabel.setAttribute("y", bottom + 36);
-      xLabel.setAttribute("text-anchor", "end");
-      xLabel.setAttribute("fill", "var(--lab-axis-label)");
-      xLabel.setAttribute("font-size", "12");
-      xLabel.textContent = this.xLabel;
-      this.axisGroup.appendChild(xLabel);
-    }
-
-    const yLabel = this.createSvgElement("text");
-    if (yLabel) {
-      yLabel.setAttribute("x", left - 36);
-      yLabel.setAttribute("y", top - 6);
-      yLabel.setAttribute("text-anchor", "start");
-      yLabel.setAttribute("fill", "var(--lab-axis-label)");
-      yLabel.setAttribute("font-size", "12");
-      yLabel.textContent = this.yLabel;
-      this.axisGroup.appendChild(yLabel);
-    }
-
-    const ticks = 4;
-    for (let i = 0; i <= ticks; i += 1) {
-      const t = i / ticks;
-      const x = left + (right - left) * t;
-      const y = bottom - (bottom - top) * t;
-      const gridX = this.createSvgElement("line");
-      const gridY = this.createSvgElement("line");
-      if (gridX) {
-        gridX.setAttribute("x1", x);
-        gridX.setAttribute("y1", top);
-        gridX.setAttribute("x2", x);
-        gridX.setAttribute("y2", bottom);
-        gridX.setAttribute("stroke", "var(--lab-grid)");
-        gridX.setAttribute("stroke-width", "1");
-        this.gridGroup?.appendChild(gridX);
-      }
-      if (gridY) {
-        gridY.setAttribute("x1", left);
-        gridY.setAttribute("y1", y);
-        gridY.setAttribute("x2", right);
-        gridY.setAttribute("y2", y);
-        gridY.setAttribute("stroke", "var(--lab-grid)");
-        gridY.setAttribute("stroke-width", "1");
-        this.gridGroup?.appendChild(gridY);
-      }
-    }
-
-    const yMaxLabel = this.createSvgElement("text");
-    if (yMaxLabel) {
-      yMaxLabel.setAttribute("x", left - 10);
-      yMaxLabel.setAttribute("y", top + 4);
-      yMaxLabel.setAttribute("text-anchor", "end");
-      yMaxLabel.setAttribute("fill", "var(--lab-axis-label)");
-      yMaxLabel.setAttribute("font-size", "11");
-      yMaxLabel.textContent = yMax.toFixed(1);
-      this.axisGroup.appendChild(yMaxLabel);
-    }
-  }
-
-  updateCurve() {
-    if (!this.curvePath) return;
-    const points = this.generatePoints();
-    const yMin = this.yRange ? this.yRange[0] : 0;
-    let yMax = this.yRange ? this.yRange[1] : 0;
-    if (!this.yRange) {
-      yMax = Math.max(1, ...points.map((point) => point.y));
-    }
-
-    this.updateAxes(yMax);
-
-    const left = this.padding;
-    const right = this.width - this.padding;
-    const top = this.padding;
-    const bottom = this.height - this.padding;
-    const xSpan = this.xRange[1] - this.xRange[0] || 1;
-    const ySpan = yMax - yMin || 1;
-
-    const path = points
-      .map((point, index) => {
-        const x = left + ((point.t - this.xRange[0]) / xSpan) * (right - left);
-        const y = bottom - ((point.y - yMin) / ySpan) * (bottom - top);
-        const command = index === 0 ? "M" : "L";
-        return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
-      })
-      .join(" ");
-
-    this.curvePath.setAttribute("d", path);
-    this.updateControlPoints(points, left, right, top, bottom, xSpan, ySpan, yMin);
-  }
-
-  updateControlPoints(points, left, right, top, bottom, xSpan, ySpan, yMin) {
-    if (!this.controlPoints?.length || points.length === 0) return;
-    const indices = [0, Math.floor(points.length / 2), points.length - 1];
-    indices.forEach((index, slot) => {
-      const point = points[index];
-      const cx = left + ((point.t - this.xRange[0]) / xSpan) * (right - left);
-      const cy = bottom - ((point.y - yMin) / ySpan) * (bottom - top);
-      const circle = this.controlPoints[slot];
-      if (circle) {
-        circle.setAttribute("cx", cx.toFixed(2));
-        circle.setAttribute("cy", cy.toFixed(2));
-      }
+    navItems.forEach((item) => {
+      item.classList.toggle("active", item.dataset.view === viewId);
     });
   }
 
-  getPathData() {
-    return this.curvePath?.getAttribute?.("d") || "";
-  }
+  navItems.forEach((item) => {
+    item.addEventListener("click", () => setActiveView(item.dataset.view));
+  });
+
+  setActiveView(DEFAULT_VIEW);
+  return { setActiveView };
 }
 
-class PredictivePlot {
-  constructor(options) {
-    if (!options || !options.container) {
-      throw new Error("PredictivePlot requires a container element.");
-    }
-    this.container = options.container;
-    this.document =
-      options.rootDocument || this.container.ownerDocument || (typeof document !== "undefined" ? document : null);
-    this.width = toNumber(options.width, 520);
-    this.height = toNumber(options.height, 220);
-    this.padding = toNumber(options.padding, 32);
-    this.plot = null;
-    this.build();
-  }
-
-  createSvgElement(tagName) {
-    if (this.document?.createElementNS) {
-      return this.document.createElementNS("http://www.w3.org/2000/svg", tagName);
-    }
-    return this.document?.createElement ? this.document.createElement(tagName) : null;
-  }
-
-  build() {
-    if (!this.container) return;
-    this.container.innerHTML = "";
-    this.container.classList?.add("predictive-plot-chart");
-
-    this.svg = this.createSvgElement("svg");
-    if (!this.svg) return;
-    this.svg.setAttribute("viewBox", `0 0 ${this.width} ${this.height}`);
-    this.svg.setAttribute("width", "100%");
-    this.svg.setAttribute("height", "100%");
-    this.svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-
-    this.gridGroup = this.createSvgElement("g");
-    this.axisGroup = this.createSvgElement("g");
-    this.bandGroup = this.createSvgElement("g");
-    this.lineGroup = this.createSvgElement("g");
-    if (this.gridGroup) this.svg.appendChild(this.gridGroup);
-    if (this.axisGroup) this.svg.appendChild(this.axisGroup);
-    if (this.bandGroup) this.svg.appendChild(this.bandGroup);
-    if (this.lineGroup) this.svg.appendChild(this.lineGroup);
-
-    this.bandPath = this.createSvgElement("path");
-    if (this.bandPath) {
-      this.bandPath.setAttribute("fill", "var(--predictive-band)");
-      this.bandPath.setAttribute("stroke", "none");
-      this.bandGroup?.appendChild(this.bandPath);
-    }
-
-    this.linePath = this.createSvgElement("path");
-    if (this.linePath) {
-      this.linePath.setAttribute("fill", "none");
-      this.linePath.setAttribute("stroke", "var(--predictive-line)");
-      this.linePath.setAttribute("stroke-width", "3");
-      this.linePath.setAttribute("stroke-linecap", "round");
-      this.linePath.setAttribute("stroke-linejoin", "round");
-      this.lineGroup?.appendChild(this.linePath);
-    }
-
-    this.container.appendChild(this.svg);
-    this.emptyLabel = this.document?.createElement ? this.document.createElement("div") : null;
-    if (this.emptyLabel) {
-      this.emptyLabel.className = "predictive-plot-empty";
-      this.emptyLabel.textContent = "Predictive plot will appear once the session starts.";
-      this.container.appendChild(this.emptyLabel);
-    }
-  }
-
-  setData(plot) {
-    this.plot = plot;
-    this.update();
-  }
-
-  updateAxes(yMin, yMax, xMax) {
-    if (!this.axisGroup) return;
-    this.axisGroup.innerHTML = "";
-    if (this.gridGroup?.replaceChildren) {
-      this.gridGroup.replaceChildren();
-    } else if (this.gridGroup) {
-      this.gridGroup.innerHTML = "";
-    }
-
-    const left = this.padding;
-    const right = this.width - this.padding;
-    const top = this.padding;
-    const bottom = this.height - this.padding;
-
-    const xAxis = this.createSvgElement("line");
-    const yAxis = this.createSvgElement("line");
-    if (xAxis) {
-      xAxis.setAttribute("x1", left);
-      xAxis.setAttribute("y1", bottom);
-      xAxis.setAttribute("x2", right);
-      xAxis.setAttribute("y2", bottom);
-      xAxis.setAttribute("stroke", "var(--predictive-axis)");
-      xAxis.setAttribute("stroke-width", "2");
-      this.axisGroup.appendChild(xAxis);
-    }
-    if (yAxis) {
-      yAxis.setAttribute("x1", left);
-      yAxis.setAttribute("y1", bottom);
-      yAxis.setAttribute("x2", left);
-      yAxis.setAttribute("y2", top);
-      yAxis.setAttribute("stroke", "var(--predictive-axis)");
-      yAxis.setAttribute("stroke-width", "2");
-      this.axisGroup.appendChild(yAxis);
-    }
-
-    const ticks = 4;
-    for (let i = 0; i <= ticks; i += 1) {
-      const t = i / ticks;
-      const x = left + (right - left) * t;
-      const y = bottom - (bottom - top) * t;
-      const gridX = this.createSvgElement("line");
-      const gridY = this.createSvgElement("line");
-      if (gridX) {
-        gridX.setAttribute("x1", x);
-        gridX.setAttribute("y1", top);
-        gridX.setAttribute("x2", x);
-        gridX.setAttribute("y2", bottom);
-        gridX.setAttribute("stroke", "var(--predictive-grid)");
-        gridX.setAttribute("stroke-width", "1");
-        this.gridGroup?.appendChild(gridX);
-      }
-      if (gridY) {
-        gridY.setAttribute("x1", left);
-        gridY.setAttribute("y1", y);
-        gridY.setAttribute("x2", right);
-        gridY.setAttribute("y2", y);
-        gridY.setAttribute("stroke", "var(--predictive-grid)");
-        gridY.setAttribute("stroke-width", "1");
-        this.gridGroup?.appendChild(gridY);
-      }
-    }
-
-    const yMaxLabel = this.createSvgElement("text");
-    if (yMaxLabel) {
-      yMaxLabel.setAttribute("x", left - 8);
-      yMaxLabel.setAttribute("y", top + 4);
-      yMaxLabel.setAttribute("text-anchor", "end");
-      yMaxLabel.setAttribute("fill", "var(--predictive-axis-label)");
-      yMaxLabel.setAttribute("font-size", "11");
-      yMaxLabel.textContent = yMax.toFixed(2);
-      this.axisGroup.appendChild(yMaxLabel);
-    }
-
-    const yMinLabel = this.createSvgElement("text");
-    if (yMinLabel) {
-      yMinLabel.setAttribute("x", left - 8);
-      yMinLabel.setAttribute("y", bottom);
-      yMinLabel.setAttribute("text-anchor", "end");
-      yMinLabel.setAttribute("fill", "var(--predictive-axis-label)");
-      yMinLabel.setAttribute("font-size", "11");
-      yMinLabel.textContent = yMin.toFixed(2);
-      this.axisGroup.appendChild(yMinLabel);
-    }
-
-    const xLabel = this.createSvgElement("text");
-    if (xLabel) {
-      xLabel.setAttribute("x", right);
-      xLabel.setAttribute("y", bottom + 26);
-      xLabel.setAttribute("text-anchor", "end");
-      xLabel.setAttribute("fill", "var(--predictive-axis-label)");
-      xLabel.setAttribute("font-size", "11");
-      xLabel.textContent = `Next ${xMax} items`;
-      this.axisGroup.appendChild(xLabel);
-    }
-  }
-
-  update() {
-    const points = Array.isArray(this.plot?.points) ? this.plot.points : [];
-    if (!points.length || !this.linePath || !this.bandPath) {
-      if (this.linePath) this.linePath.setAttribute("d", "");
-      if (this.bandPath) this.bandPath.setAttribute("d", "");
-      if (this.emptyLabel) this.emptyLabel.style.display = "block";
-      return;
-    }
-    if (this.emptyLabel) this.emptyLabel.style.display = "none";
-
-    const baselineTheta = toNumber(this.plot?.baselineTheta, 0);
-    const baselineSE = toNumber(this.plot?.baselineStandardError, 0.4);
-    const allPoints = [
-      {
-        step: 0,
-        expectedTheta: baselineTheta,
-        lowerTheta: baselineTheta - baselineSE,
-        upperTheta: baselineTheta + baselineSE,
-      },
-      ...points,
-    ];
-
-    let yMin = Math.min(...allPoints.map((point) => point.lowerTheta));
-    let yMax = Math.max(...allPoints.map((point) => point.upperTheta));
-    if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
-      yMin = -2;
-      yMax = 2;
-    }
-    if (yMax - yMin < 0.5) {
-      yMax += 0.25;
-      yMin -= 0.25;
-    }
-
-    const left = this.padding;
-    const right = this.width - this.padding;
-    const top = this.padding;
-    const bottom = this.height - this.padding;
-    const xSpan = Math.max(1, points.length);
-    const ySpan = yMax - yMin || 1;
-
-    const scaleX = (step) => left + (step / xSpan) * (right - left);
-    const scaleY = (value) => bottom - ((value - yMin) / ySpan) * (bottom - top);
-
-    const linePath = allPoints
-      .map((point, index) => {
-        const x = scaleX(point.step);
-        const y = scaleY(point.expectedTheta);
-        const command = index === 0 ? "M" : "L";
-        return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
-      })
-      .join(" ");
-
-    const upperPath = allPoints
-      .map((point, index) => {
-        const x = scaleX(point.step);
-        const y = scaleY(point.upperTheta);
-        const command = index === 0 ? "M" : "L";
-        return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
-      })
-      .join(" ");
-
-    const lowerPath = allPoints
-      .slice()
-      .reverse()
-      .map((point, index) => {
-        const x = scaleX(point.step);
-        const y = scaleY(point.lowerTheta);
-        const command = index === 0 ? "L" : "L";
-        return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
-      })
-      .join(" ");
-
-    this.linePath.setAttribute("d", linePath);
-    this.bandPath.setAttribute("d", `${upperPath} ${lowerPath} Z`);
-    this.updateAxes(yMin, yMax, points.length);
-  }
-
-  getLinePathData() {
-    return this.linePath?.getAttribute?.("d") || "";
-  }
-}
-
-function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
+function createUploadRenderer(documentRoot, api) {
   const elements = {
-    dropzone: rootDocument.querySelector("#uploadDropzone"),
-    input: rootDocument.querySelector("#uploadInput"),
-    status: rootDocument.querySelector("#uploadStatus"),
-    fileName: rootDocument.querySelector("#uploadFileName"),
-    openUploadButton: rootDocument.querySelector("#openUpload"),
-    uploadView: rootDocument.querySelector("#uploadView"),
+    dropzone: documentRoot.querySelector("#uploadDropzone"),
+    input: documentRoot.querySelector("#uploadInput"),
+    status: documentRoot.querySelector("#uploadStatus"),
+    fileName: documentRoot.querySelector("#uploadFileName"),
+    unitCount: documentRoot.querySelector("#ingestUnitCount"),
+    objectiveCount: documentRoot.querySelector("#ingestObjectiveCount"),
+    source: documentRoot.querySelector("#ingestSource"),
+    updatedAt: documentRoot.querySelector("#ingestUpdatedAt"),
+    sidebarUnitCount: documentRoot.querySelector("#sidebarUnitCount"),
+    sidebarLastIngest: documentRoot.querySelector("#sidebarLastIngest"),
   };
 
   const state = { isUploading: false, requestId: 0 };
@@ -693,6 +79,20 @@ function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
   function setFileName(name) {
     if (!elements.fileName) return;
     elements.fileName.textContent = name || "No file selected";
+  }
+
+  function updateSummary(summary) {
+    if (!summary) return;
+    const unitCount = Number(summary.unitCount || 0);
+    const objectiveCount = Number(summary.objectiveCount || 0);
+    if (elements.unitCount) elements.unitCount.textContent = `${unitCount}`;
+    if (elements.objectiveCount) elements.objectiveCount.textContent = `${objectiveCount}`;
+    if (elements.source) elements.source.textContent = summary.sourceFile || "--";
+    if (elements.updatedAt) elements.updatedAt.textContent = formatTimestamp(summary.updatedAt);
+    if (elements.sidebarUnitCount) elements.sidebarUnitCount.textContent = `${unitCount}`;
+    if (elements.sidebarLastIngest) elements.sidebarLastIngest.textContent = summary.sourceFile
+      ? `Last ingest: ${summary.sourceFile}`
+      : "No ingestion yet";
   }
 
   function isSupportedFile(filePath) {
@@ -720,13 +120,8 @@ function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
     try {
       const result = await api.processUpload(filePath);
       if (requestId !== state.requestId) return;
-      const unitCount = typeof result?.unitCount === "number" ? result.unitCount : 0;
-      setStatus(`Parsed ${unitCount} knowledge units`, "success");
-      if (typeof onSummaryUpdated === "function" && result?.summary) {
-        onSummaryUpdated(result.summary);
-      } else if (!result?.summary) {
-        setStatus("Upload complete, but no summary returned.", "neutral");
-      }
+      setStatus(`Parsed ${result?.unitCount || 0} knowledge units`, "success");
+      updateSummary(result);
     } catch (error) {
       if (requestId !== state.requestId) return;
       setStatus(normalizeErrorMessage(error, "Upload failed"), "error");
@@ -778,13 +173,6 @@ function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
     }
   }
 
-  function bindUploadButton() {
-    if (!elements.openUploadButton || !elements.uploadView) return;
-    elements.openUploadButton.addEventListener("click", () => {
-      elements.uploadView.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
-
   function bindStatusUpdates() {
     if (!api?.onUploadStatus) return;
     api.onUploadStatus((payload) => {
@@ -798,304 +186,44 @@ function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
       if (payload.message) {
         setStatus(payload.message, payload.tone || "neutral");
       }
+      if (payload.summary) {
+        updateSummary(payload.summary);
+      }
     });
   }
 
   function initialize() {
     bindDropzone();
-    bindUploadButton();
     bindStatusUpdates();
     setStatus("Ready to ingest", "neutral");
     setDropzoneState("idle");
   }
 
   return {
-    elements,
     initialize,
-    handleFilePath,
+    updateSummary,
   };
 }
 
-function createDashboardRenderer(rootDocument) {
+function createLessonsRenderer(documentRoot, api) {
   const elements = {
-    syncButton: rootDocument.querySelector("#syncButton"),
-    syncStatus: rootDocument.querySelector("#syncStatus"),
-    nodeCountLabel: rootDocument.querySelector("#nodeCount"),
-    edgeCountLabel: rootDocument.querySelector("#edgeCount"),
-    sidebarNodeCountLabel: rootDocument.querySelector("#sidebarNodeCount"),
-    sidebarEdgeCountLabel: rootDocument.querySelector("#sidebarEdgeCount"),
-    sidebarMasteryFill: rootDocument.querySelector("#sidebarMasteryFill"),
-    graphSourceLabel: rootDocument.querySelector("#graphSource"),
-    lastUpdatedLabel: rootDocument.querySelector("#lastUpdated"),
-    lastStudiedLabel: rootDocument.querySelector("#lastStudied"),
-    timeToMasteryLabel: rootDocument.querySelector("#timeToMastery"),
-    dueCountLabel: rootDocument.querySelector("#dueCount"),
-    nextReviewLabel: rootDocument.querySelector("#nextReviewAt"),
-    typeList: rootDocument.querySelector("#typeList"),
-    pulseSummary: rootDocument.querySelector("#pulseSummary"),
-    masteryList: rootDocument.querySelector("#masteryList"),
-    recentTopics: rootDocument.querySelector("#recentTopics"),
-  };
-
-  const state = { isSyncing: false, requestId: 0 };
-
-  function setSyncStatus(message, tone = "neutral") {
-    if (!elements.syncStatus) return;
-    elements.syncStatus.textContent = message;
-    elements.syncStatus.dataset.tone = tone;
-  }
-
-  function clearElement(target) {
-    if (!target) return;
-    target.innerHTML = "";
-  }
-
-  function renderTypeList(nodeTypes) {
-    if (!elements.typeList) return;
-    clearElement(elements.typeList);
-    const entries = Object.entries(nodeTypes || {}).sort((a, b) => b[1] - a[1]);
-
-    if (entries.length === 0) {
-      const empty = rootDocument.createElement("div");
-      empty.className = "type-row type-row--empty";
-      empty.textContent = "No nodes available yet.";
-      elements.typeList.appendChild(empty);
-      return;
-    }
-
-    entries.forEach(([type, count]) => {
-      const row = rootDocument.createElement("div");
-      row.className = "type-row";
-
-      const label = rootDocument.createElement("span");
-      label.className = "type-label";
-      label.textContent = type;
-
-      const value = rootDocument.createElement("span");
-      value.className = "type-count";
-      value.textContent = `${count}`;
-
-      row.appendChild(label);
-      row.appendChild(value);
-      elements.typeList.appendChild(row);
-    });
-  }
-
-  function renderMasteryList(masteryLevels) {
-    if (!elements.masteryList) return;
-    clearElement(elements.masteryList);
-
-    const totals = DEFAULT_LEVEL_ORDER.reduce((sum, level) => {
-      return sum + toNumber(masteryLevels?.[level], 0);
-    }, 0);
-
-    DEFAULT_LEVEL_ORDER.forEach((level) => {
-      const count = toNumber(masteryLevels?.[level], 0);
-      const percent = totals > 0 ? Math.round((count / totals) * 100) : 0;
-
-      const row = rootDocument.createElement("div");
-      row.className = "mastery-row";
-
-      const label = rootDocument.createElement("div");
-      label.className = "mastery-label";
-      label.textContent = level;
-
-      const value = rootDocument.createElement("div");
-      value.className = "mastery-value";
-      value.textContent = `${count}`;
-
-      const bar = rootDocument.createElement("div");
-      bar.className = "mastery-bar";
-      bar.style.setProperty("--percent", `${percent}%`);
-
-      const barFill = rootDocument.createElement("span");
-      bar.appendChild(barFill);
-
-      row.appendChild(label);
-      row.appendChild(value);
-      row.appendChild(bar);
-      elements.masteryList.appendChild(row);
-    });
-  }
-
-  function renderRecentTopics(topics) {
-    if (!elements.recentTopics) return;
-    clearElement(elements.recentTopics);
-    const entries = Array.isArray(topics) ? topics : [];
-
-    if (entries.length === 0) {
-      const empty = rootDocument.createElement("div");
-      empty.className = "recent-row recent-row--empty";
-      empty.textContent = "No recent study activity yet.";
-      elements.recentTopics.appendChild(empty);
-      return;
-    }
-
-    entries.forEach((topic) => {
-      const row = rootDocument.createElement("div");
-      row.className = "recent-row";
-
-      const details = rootDocument.createElement("div");
-      details.className = "recent-details";
-
-      const title = rootDocument.createElement("div");
-      title.className = "recent-title";
-      title.textContent = topic.title || "Untitled topic";
-
-      const meta = rootDocument.createElement("div");
-      meta.className = "recent-meta";
-      const when = topic.lastAssessed ? formatTimestamp(topic.lastAssessed) : "No timestamp";
-      meta.textContent = when;
-
-      details.appendChild(title);
-      details.appendChild(meta);
-
-      const badge = rootDocument.createElement("div");
-      badge.className = "recent-badge";
-      badge.dataset.level = (topic.level || "Unknown").toLowerCase();
-      badge.textContent = topic.level || "Unknown";
-
-      row.appendChild(details);
-      row.appendChild(badge);
-      elements.recentTopics.appendChild(row);
-    });
-  }
-
-  function renderSummary(summary) {
-    const nodeCount = toNumber(summary?.nodeCount, 0);
-    const edgeCount = toNumber(summary?.edgeCount, 0);
-
-    if (elements.nodeCountLabel) elements.nodeCountLabel.textContent = `${nodeCount}`;
-    if (elements.edgeCountLabel) elements.edgeCountLabel.textContent = `${edgeCount}`;
-    if (elements.sidebarNodeCountLabel) elements.sidebarNodeCountLabel.textContent = `${nodeCount}`;
-    if (elements.sidebarEdgeCountLabel) elements.sidebarEdgeCountLabel.textContent = `${edgeCount}`;
-
-    if (elements.sidebarMasteryFill) {
-      const advancedCount = toNumber(summary?.masteryLevels?.["Advanced"], 0);
-      const proficientCount = toNumber(summary?.masteryLevels?.["Proficient"], 0);
-      const mastered = advancedCount + proficientCount;
-      const percent = nodeCount > 0 ? (mastered / nodeCount) * 100 : 0;
-      elements.sidebarMasteryFill.style.width = `${percent}%`;
-    }
-
-    if (elements.graphSourceLabel) {
-      elements.graphSourceLabel.textContent = summary?.source || "No graph data found";
-    }
-    if (elements.lastUpdatedLabel) {
-      elements.lastUpdatedLabel.textContent = formatTimestamp(summary?.lastUpdated);
-    }
-    if (elements.lastStudiedLabel) {
-      elements.lastStudiedLabel.textContent = formatTimestampOr(summary?.lastUpdated, "Never");
-    }
-
-    if (elements.timeToMasteryLabel) {
-      const advancedCount = toNumber(summary?.masteryLevels?.["Advanced"], 0);
-      const proficientCount = toNumber(summary?.masteryLevels?.["Proficient"], 0);
-      const unmasteredCount = Math.max(0, nodeCount - advancedCount - proficientCount);
-      elements.timeToMasteryLabel.textContent = formatDurationMinutes(unmasteredCount * 10);
-    }
-
-    if (elements.dueCountLabel) {
-      const dueCount = toNumber(summary?.spacedRepetition?.dueCount, 0);
-      elements.dueCountLabel.textContent = `${dueCount}`;
-    }
-
-    if (elements.nextReviewLabel) {
-      elements.nextReviewLabel.textContent = formatTimestampOr(
-        summary?.spacedRepetition?.nextReviewAt,
-        "No scheduled reviews"
-      );
-    }
-
-    renderTypeList(summary?.nodeTypes);
-    renderMasteryList(summary?.masteryLevels);
-    renderRecentTopics(summary?.recentTopics);
-
-    if (elements.pulseSummary) {
-      const masteryCount = Object.values(summary?.masteryLevels || {}).reduce(
-        (sum, value) => sum + toNumber(value, 0),
-        0
-      );
-      if (nodeCount === 0) {
-        elements.pulseSummary.textContent = "Waiting for content ingestion.";
-      } else if (masteryCount === 0) {
-        elements.pulseSummary.textContent = "Graph is live. Mastery tracking will activate after sessions.";
-      } else {
-        elements.pulseSummary.textContent = `Tracking mastery across ${masteryCount} nodes.`;
-      }
-    }
-  }
-
-  async function syncBackend() {
-    if (state.isSyncing) return;
-    if (typeof window === "undefined" || !window.catApi?.syncBackend) {
-      setSyncStatus("Python backend not available", "error");
-      return;
-    }
-
-    state.isSyncing = true;
-    const requestId = ++state.requestId;
-    if (elements.syncButton) elements.syncButton.disabled = true;
-    setSyncStatus("Syncing with Python backend...", "neutral");
-
-    try {
-      const summary = await window.catApi.syncBackend();
-      if (requestId !== state.requestId) return;
-      if (!summary) {
-        throw new Error("No data returned from backend.");
-      }
-      renderSummary(summary);
-      setSyncStatus("Sync complete", "success");
-    } catch (error) {
-      if (requestId !== state.requestId) return;
-      setSyncStatus(normalizeErrorMessage(error, "Sync failed"), "error");
-    } finally {
-      if (requestId === state.requestId) {
-        state.isSyncing = false;
-        if (elements.syncButton) elements.syncButton.disabled = false;
-      }
-    }
-  }
-
-  function initialize() {
-    if (elements.syncButton) {
-      elements.syncButton.addEventListener("click", syncBackend);
-    }
-    setSyncStatus("Ready to sync", "neutral");
-    renderSummary({
-      nodeCount: 0,
-      edgeCount: 0,
-      nodeTypes: {},
-      masteryLevels: {},
-      recentTopics: [],
-      source: "Awaiting sync",
-      lastUpdated: null,
-    });
-    syncBackend();
-  }
-
-  return {
-    elements,
-    initialize,
-    renderSummary,
-    syncBackend,
-  };
-}
-
-function createLessonsRenderer(rootDocument, api) {
-  const elements = {
-    list: rootDocument.querySelector("#lessonsList"),
-    empty: rootDocument.querySelector("#lessonEmpty"),
-    title: rootDocument.querySelector("#lessonTitle"),
-    summary: rootDocument.querySelector("#lessonSummary"),
-    slides: rootDocument.querySelector("#lessonSlides"),
-    keyPoints: rootDocument.querySelector("#lessonKeyPoints"),
-    meta: rootDocument.querySelector("#lessonMeta"),
+    list: documentRoot.querySelector("#lessonsList"),
+    empty: documentRoot.querySelector("#lessonsEmpty"),
+    title: documentRoot.querySelector("#lessonTitle"),
+    summary: documentRoot.querySelector("#lessonSummary"),
+    objectives: documentRoot.querySelector("#lessonObjectives"),
+    stageLabel: documentRoot.querySelector("#lessonStageLabel"),
+    preQuiz: documentRoot.querySelector("#lessonPreQuiz"),
+    core: documentRoot.querySelector("#lessonCore"),
+    postQuiz: documentRoot.querySelector("#lessonPostQuiz"),
+    startButton: documentRoot.querySelector("#lessonStartButton"),
+    continueButton: documentRoot.querySelector("#lessonContinueButton"),
   };
 
   const state = {
     lessons: [],
     activeLessonId: null,
+    stage: "idle",
     requestId: 0,
   };
 
@@ -1104,199 +232,167 @@ function createLessonsRenderer(rootDocument, api) {
     target.innerHTML = "";
   }
 
-  function setEmptyState(isVisible, message) {
-    if (!elements.empty) return;
-    const baseClass = "lesson-empty";
-    elements.empty.className = isVisible ? `${baseClass} is-visible` : baseClass;
-    if (message) {
-      elements.empty.textContent = message;
-    }
-  }
-
-  function normalizeLesson(rawLesson, index) {
-    const lesson = rawLesson && typeof rawLesson === "object" ? rawLesson : {};
-    const id = getValue(lesson, "id", "Id") ?? `lesson-${index}`;
-    const title = getValue(lesson, "title", "Title") || "Untitled lesson";
-    const summary =
-      getValue(lesson, "summary", "Summary", "description", "Description") || "No summary provided.";
-    const estimatedReadMinutes = toNumber(
-      getValue(lesson, "estimatedReadMinutes", "EstimatedReadMinutes"),
-      0
-    );
-    const progressPercent = toNumber(getValue(lesson, "progressPercent", "ProgressPercent"), 0);
-
-    const sectionsRaw = getValue(lesson, "sections", "Sections");
-    const sections = Array.isArray(sectionsRaw)
-      ? sectionsRaw.map((section, sectionIndex) => {
-          const sectionValue = section && typeof section === "object" ? section : {};
-          const heading =
-            getValue(sectionValue, "heading", "Heading") || `Section ${sectionIndex + 1}`;
-          const body = getValue(sectionValue, "body", "Body") || "";
-          const promptsRaw = getValue(sectionValue, "prompts", "Prompts");
-          const prompts = Array.isArray(promptsRaw)
-            ? promptsRaw
-                .map((prompt) => {
-                  if (typeof prompt === "string") return prompt;
-                  if (prompt && typeof prompt === "object") {
-                    return getValue(prompt, "prompt", "Prompt") || "";
-                  }
-                  return "";
-                })
-                .filter(Boolean)
-            : [];
-
-          return {
-            id: getValue(sectionValue, "id", "Id") ?? `${id}-section-${sectionIndex}`,
-            heading,
-            body,
-            prompts,
-          };
-        })
-      : [];
-
-    const keyPointsRaw = getValue(lesson, "keyPoints", "KeyPoints");
-    const keyPoints = Array.isArray(keyPointsRaw)
-      ? keyPointsRaw
-          .map((point) => (typeof point === "string" ? point.trim() : ""))
-          .filter(Boolean)
-      : [];
-
-    if (keyPoints.length === 0) {
-      sections.forEach((section) => {
-        section.prompts.forEach((prompt) => {
-          if (prompt) keyPoints.push(prompt);
-        });
-      });
+  function setStage(stage) {
+    state.stage = stage;
+    if (elements.stageLabel) {
+      const labelMap = {
+        idle: "Idle",
+        pre: "Pre-Quiz",
+        core: "Lesson",
+        post: "Post-Quiz",
+        complete: "Complete",
+      };
+      elements.stageLabel.textContent = labelMap[stage] || "Lesson";
     }
 
-    return {
-      id: String(id),
-      title,
-      summary,
-      estimatedReadMinutes,
-      progressPercent,
-      sections,
-      keyPoints,
+    const show = (element, isVisible) => {
+      if (!element) return;
+      element.style.display = isVisible ? "grid" : "none";
     };
+
+    show(elements.preQuiz, stage === "pre");
+    show(elements.core, stage === "core");
+    show(elements.postQuiz, stage === "post");
+
+    if (elements.continueButton) {
+      elements.continueButton.style.display = ["pre", "core"].includes(stage) ? "inline-flex" : "none";
+      elements.continueButton.textContent = stage === "pre" ? "Continue to Lesson" : "Continue to Post-Quiz";
+    }
   }
 
   function renderLessonList() {
     if (!elements.list) return;
     clearElement(elements.list);
-
-    if (state.lessons.length === 0) {
-      setEmptyState(true, "No lessons available yet. Generate lessons after ingesting content.");
+    if (!state.lessons.length) {
+      if (elements.empty) elements.empty.style.display = "block";
       return;
     }
+    if (elements.empty) elements.empty.style.display = "none";
 
-    setEmptyState(false);
     state.lessons.forEach((lesson) => {
-      const button = rootDocument.createElement("button");
-      const isActive = lesson.id === state.activeLessonId;
-      button.className = isActive ? "lesson-item active" : "lesson-item";
+      const button = documentRoot.createElement("div");
+      button.className = lesson.id === state.activeLessonId ? "list-item active" : "list-item";
       button.dataset.lessonId = lesson.id;
 
-      const title = rootDocument.createElement("div");
-      title.className = "lesson-item-title";
-      title.textContent = lesson.title;
+      const title = documentRoot.createElement("div");
+      title.className = "list-item-title";
+      title.textContent = lesson.title || "Untitled lesson";
 
-      const meta = rootDocument.createElement("div");
-      meta.className = "lesson-item-meta";
-      const minutesLabel = lesson.estimatedReadMinutes
-        ? `${lesson.estimatedReadMinutes} min`
-        : "Read time n/a";
-      meta.textContent = `${minutesLabel} • ${Math.round(lesson.progressPercent)}% complete`;
+      const meta = documentRoot.createElement("div");
+      meta.className = "list-item-meta";
+      const minutes = lesson.estimatedReadMinutes ? `${lesson.estimatedReadMinutes} min` : "Read time n/a";
+      meta.textContent = `${minutes} • ${lesson.sourceUnitId ? "Knowledge unit" : ""}`.trim();
 
       button.appendChild(title);
       button.appendChild(meta);
 
-      button.addEventListener("click", () => {
-        selectLesson(lesson.id);
-      });
-
+      button.addEventListener("click", () => selectLesson(lesson.id));
       elements.list.appendChild(button);
     });
   }
 
+  function renderObjectives(objectives) {
+    if (!elements.objectives) return;
+    clearElement(elements.objectives);
+    const items = Array.isArray(objectives) ? objectives : [];
+    if (!items.length) {
+      const placeholder = documentRoot.createElement("div");
+      placeholder.className = "lesson-block-meta";
+      placeholder.textContent = "No learning objectives supplied.";
+      elements.objectives.appendChild(placeholder);
+      return;
+    }
+    items.forEach((objective) => {
+      const chip = documentRoot.createElement("div");
+      chip.className = "lesson-objective-chip";
+      chip.textContent = objective;
+      elements.objectives.appendChild(chip);
+    });
+  }
+
+  function renderQuiz(container, quiz, label) {
+    if (!container) return;
+    clearElement(container);
+    if (!quiz || !Array.isArray(quiz.items) || !quiz.items.length) {
+      const empty = documentRoot.createElement("div");
+      empty.className = "lesson-block-meta";
+      empty.textContent = `${label} quiz not available.`;
+      container.appendChild(empty);
+      return;
+    }
+
+    quiz.items.forEach((item, index) => {
+      const block = documentRoot.createElement("div");
+      block.className = "lesson-block";
+
+      const title = documentRoot.createElement("div");
+      title.className = "lesson-block-title";
+      title.textContent = `${label} Q${index + 1}`;
+
+      const prompt = documentRoot.createElement("div");
+      prompt.textContent = item.prompt || item.stem || "";
+
+      block.appendChild(title);
+      block.appendChild(prompt);
+
+      if (Array.isArray(item.choices) && item.choices.length) {
+        const meta = documentRoot.createElement("div");
+        meta.className = "lesson-block-meta";
+        meta.textContent = "Choices: " + item.choices.map((choice) => choice.text || choice).join(" | ");
+        block.appendChild(meta);
+      }
+
+      container.appendChild(block);
+    });
+  }
+
+  function renderSections(sections) {
+    if (!elements.core) return;
+    clearElement(elements.core);
+    if (!Array.isArray(sections) || !sections.length) {
+      const empty = documentRoot.createElement("div");
+      empty.className = "lesson-block-meta";
+      empty.textContent = "No lesson sections generated yet.";
+      elements.core.appendChild(empty);
+      return;
+    }
+
+    sections.forEach((section) => {
+      const block = documentRoot.createElement("div");
+      block.className = "lesson-block";
+
+      const title = documentRoot.createElement("div");
+      title.className = "lesson-block-title";
+      title.textContent = section.heading || "Lesson step";
+
+      const body = documentRoot.createElement("div");
+      body.textContent = section.body || "";
+
+      block.appendChild(title);
+      block.appendChild(body);
+
+      if (section.checkpoint) {
+        const checkpoint = documentRoot.createElement("div");
+        checkpoint.className = "lesson-block-meta";
+        checkpoint.textContent = `Checkpoint: ${section.checkpoint.prompt}`;
+        block.appendChild(checkpoint);
+      }
+
+      elements.core.appendChild(block);
+    });
+  }
+
   function renderLessonDetails(lesson) {
-    if (elements.title) elements.title.textContent = lesson?.title || "Select a lesson";
-    if (elements.summary)
+    if (elements.title) elements.title.textContent = lesson?.title || "Select or start a lesson";
+    if (elements.summary) {
       elements.summary.textContent =
-        lesson?.summary || "Choose a module to review slides, summaries, and key points.";
-
-    if (elements.meta) {
-      clearElement(elements.meta);
-      if (lesson) {
-        const chips = [];
-        if (lesson.estimatedReadMinutes) {
-          chips.push(`Estimated read: ${lesson.estimatedReadMinutes} min`);
-        }
-        chips.push(`Progress: ${Math.round(lesson.progressPercent)}%`);
-        chips.push(`Sections: ${lesson.sections.length}`);
-
-        chips.forEach((text) => {
-          const chip = rootDocument.createElement("div");
-          chip.className = "lesson-chip";
-          chip.textContent = text;
-          elements.meta.appendChild(chip);
-        });
-      }
+        lesson?.summary || "Lessons include a diagnostic pre-quiz, interactive checkpoints, and a mastery post-quiz.";
     }
-
-    if (elements.slides) {
-      clearElement(elements.slides);
-      if (!lesson || lesson.sections.length === 0) {
-        const empty = rootDocument.createElement("div");
-        empty.className = "lesson-slide";
-        empty.textContent = "No slide content available for this lesson.";
-        elements.slides.appendChild(empty);
-      } else {
-        lesson.sections.forEach((section) => {
-          const slide = rootDocument.createElement("div");
-          slide.className = "lesson-slide";
-
-          const heading = rootDocument.createElement("div");
-          heading.className = "lesson-slide-title";
-          heading.textContent = section.heading;
-
-          const body = rootDocument.createElement("div");
-          body.className = "lesson-slide-body";
-          body.textContent = section.body || "No slide summary available.";
-
-          slide.appendChild(heading);
-          slide.appendChild(body);
-
-          if (section.prompts.length > 0) {
-            const promptList = rootDocument.createElement("ul");
-            promptList.className = "lesson-slide-prompts";
-            section.prompts.forEach((prompt) => {
-              const li = rootDocument.createElement("li");
-              li.textContent = prompt;
-              promptList.appendChild(li);
-            });
-            slide.appendChild(promptList);
-          }
-
-          elements.slides.appendChild(slide);
-        });
-      }
-    }
-
-    if (elements.keyPoints) {
-      clearElement(elements.keyPoints);
-      const points = lesson?.keyPoints ?? [];
-      if (points.length === 0) {
-        const empty = rootDocument.createElement("li");
-        empty.textContent = "No key points available yet.";
-        elements.keyPoints.appendChild(empty);
-      } else {
-        points.forEach((point) => {
-          const li = rootDocument.createElement("li");
-          li.textContent = point;
-          elements.keyPoints.appendChild(li);
-        });
-      }
-    }
+    renderObjectives(lesson?.objectives);
+    renderQuiz(elements.preQuiz, lesson?.preQuiz, "Pre");
+    renderSections(lesson?.sections);
+    renderQuiz(elements.postQuiz, lesson?.postQuiz, "Post");
+    setStage(lesson ? "pre" : "idle");
   }
 
   function selectLesson(lessonId) {
@@ -1307,418 +403,86 @@ function createLessonsRenderer(rootDocument, api) {
   }
 
   async function loadLessons() {
-    if (!api?.getLessons) {
-      setEmptyState(true, "Lessons service not available.");
-      return;
-    }
+    if (!api?.getLessons) return;
     const requestId = ++state.requestId;
-
     try {
       const payload = await api.getLessons();
       if (requestId !== state.requestId) return;
-      const rawLessons = Array.isArray(payload?.lessons) ? payload.lessons : [];
-      state.lessons = rawLessons.map((lesson, index) => normalizeLesson(lesson, index));
+      state.lessons = Array.isArray(payload?.lessons) ? payload.lessons : [];
       renderLessonList();
-      if (state.lessons.length > 0) {
+      if (state.lessons.length) {
         selectLesson(state.lessons[0].id);
       } else {
         renderLessonDetails(null);
       }
     } catch (error) {
       if (requestId !== state.requestId) return;
-      setEmptyState(true, normalizeErrorMessage(error, "Failed to load lessons."));
+      if (elements.empty) {
+        elements.empty.textContent = normalizeErrorMessage(error, "Failed to load lessons.");
+        elements.empty.style.display = "block";
+      }
+    }
+  }
+
+  async function handleStart() {
+    if (!api?.generateLesson) return;
+    if (!state.lessons.length) {
+      try {
+        await api.generateLesson();
+      } catch (error) {
+        if (elements.empty) {
+          elements.empty.textContent = normalizeErrorMessage(error, "Failed to generate lesson.");
+          elements.empty.style.display = "block";
+        }
+        return;
+      }
+      await loadLessons();
+      return;
+    }
+
+    const lesson = state.lessons.find((item) => item.id === state.activeLessonId) || state.lessons[0];
+    if (!lesson) return;
+    renderLessonDetails(lesson);
+  }
+
+  function handleContinue() {
+    if (state.stage === "pre") {
+      setStage("core");
+    } else if (state.stage === "core") {
+      setStage("post");
+    } else if (state.stage === "post") {
+      setStage("complete");
     }
   }
 
   function initialize() {
-    renderLessonDetails(null);
+    if (elements.startButton) elements.startButton.addEventListener("click", handleStart);
+    if (elements.continueButton) elements.continueButton.addEventListener("click", handleContinue);
+    setStage("idle");
     loadLessons();
   }
 
   return {
-    elements,
     initialize,
     loadLessons,
-    selectLesson,
   };
 }
 
-function createLearningStateMachine() {
+function createExamRenderer(documentRoot, api) {
+  const elements = {
+    list: documentRoot.querySelector("#examList"),
+    empty: documentRoot.querySelector("#examEmpty"),
+    title: documentRoot.querySelector("#examTitle"),
+    summary: documentRoot.querySelector("#examSummary"),
+    meta: documentRoot.querySelector("#examMeta"),
+    sections: documentRoot.querySelector("#examSections"),
+    generateButton: documentRoot.querySelector("#examGenerateButton"),
+  };
+
   const state = {
-    phase: "learning",
-    currentUnit: null,
-    nextUnit: null,
-    progress: { completed: 0, total: 0, percent: 0 },
-    result: null,
-    ability: null,
-    masteryLevels: null,
-    predictivePlot: null,
-    isComplete: false,
-  };
-
-  function getState() {
-    return state;
-  }
-
-  function setUnit(unit, progress, ability, masteryLevels, predictivePlot, isComplete = false) {
-    state.currentUnit = unit || null;
-    state.nextUnit = null;
-    state.progress = progress || state.progress;
-    state.result = null;
-    state.phase = "learning";
-    state.ability = ability || state.ability;
-    state.masteryLevels = masteryLevels || state.masteryLevels;
-    state.predictivePlot = predictivePlot || state.predictivePlot;
-    state.isComplete = Boolean(isComplete);
-  }
-
-  function beginAssessment() {
-    if (!state.currentUnit || state.isComplete) return;
-    state.phase = "assessment";
-  }
-
-  function recordResult(result, nextUnit, progress, ability, masteryLevels, predictivePlot, isComplete = false) {
-    state.result = result || null;
-    state.nextUnit = nextUnit || null;
-    state.progress = progress || state.progress;
-    state.phase = "result";
-    state.ability = ability || state.ability;
-    state.masteryLevels = masteryLevels || state.masteryLevels;
-    state.predictivePlot = predictivePlot || state.predictivePlot;
-    state.isComplete = Boolean(isComplete);
-  }
-
-  function advance() {
-    if (state.isComplete || !state.nextUnit) return;
-    state.currentUnit = state.nextUnit;
-    state.nextUnit = null;
-    state.result = null;
-    state.phase = "learning";
-  }
-
-  return {
-    getState,
-    setUnit,
-    beginAssessment,
-    recordResult,
-    advance,
-  };
-}
-
-function createLearningRenderer(rootDocument, api) {
-  const elements = {
-    shell: rootDocument.querySelector("#learningShell"),
-    title: rootDocument.querySelector("#learningTitle"),
-    subtitle: rootDocument.querySelector("#learningSubtitle"),
-    progressText: rootDocument.querySelector("#learningProgressText"),
-    progressFill: rootDocument.querySelector("#learningProgressFill"),
-    phase: rootDocument.querySelector("#learningPhase"),
-    phaseChip: rootDocument.querySelector("#learningPhaseChip"),
-    conceptTitle: rootDocument.querySelector("#learningConceptTitle"),
-    conceptSummary: rootDocument.querySelector("#learningConceptSummary"),
-    keyPoints: rootDocument.querySelector("#learningKeyPoints"),
-    prompt: rootDocument.querySelector("#learningPrompt"),
-    answer: rootDocument.querySelector("#learningAnswer"),
-    feedback: rootDocument.querySelector("#learningFeedback"),
-    startAssessment: rootDocument.querySelector("#learningStartAssessment"),
-    submitAnswer: rootDocument.querySelector("#learningSubmitAnswer"),
-    continueButton: rootDocument.querySelector("#learningContinue"),
-    visualLab: rootDocument.querySelector("#visualLab"),
-    visualFormula: rootDocument.querySelector("#visualLabFormula"),
-    visualFormulaCopy: rootDocument.querySelector("#visualLabFormulaCopy"),
-    predictivePlot: rootDocument.querySelector("#predictivePlot"),
-    predictiveAccuracy: rootDocument.querySelector("#predictiveAccuracy"),
-    predictiveTheta: rootDocument.querySelector("#predictiveTheta"),
-    predictiveInsight: rootDocument.querySelector("#predictiveInsight"),
-  };
-
-  const machine = createLearningStateMachine();
-  const emptyPrompt = "Review the concept summary and begin the quick check when ready.";
-  let visualGraph = null;
-  let predictiveChart = null;
-  let formulaCopyReset = null;
-  let formulaCopyLabel = "Copy";
-  let sessionRequestId = 0;
-  let responseRequestId = 0;
-  let isStartingSession = false;
-  let isSubmittingResponse = false;
-
-  function setFeedback(message, tone = "neutral") {
-    if (!elements.feedback) return;
-    elements.feedback.textContent = message || "";
-    elements.feedback.dataset.tone = tone;
-  }
-
-  function renderKeyPoints(points) {
-    if (!elements.keyPoints) return;
-    elements.keyPoints.innerHTML = "";
-    const list = Array.isArray(points) ? points : [];
-    if (list.length === 0) {
-      const empty = rootDocument.createElement("li");
-      empty.textContent = "No key points available for this concept yet.";
-      elements.keyPoints.appendChild(empty);
-      return;
-    }
-    list.forEach((point) => {
-      const item = rootDocument.createElement("li");
-      item.textContent = point;
-      elements.keyPoints.appendChild(item);
-    });
-  }
-
-  function renderProgress(progress) {
-    const completed = toNumber(progress?.completed, 0);
-    const total = Math.max(toNumber(progress?.total, 0), 0);
-    const percent = Math.max(0, Math.min(100, toNumber(progress?.percent, 0)));
-    if (elements.progressText) {
-      elements.progressText.textContent = `${completed} of ${total} complete`;
-    }
-    if (elements.progressFill) {
-      elements.progressFill.style.width = `${percent}%`;
-    }
-  }
-
-  function renderPredictivePlot(plot) {
-    if (!plot) {
-      if (elements.predictiveAccuracy) elements.predictiveAccuracy.textContent = "--";
-      if (elements.predictiveTheta) elements.predictiveTheta.textContent = "--";
-      if (elements.predictiveInsight) {
-        elements.predictiveInsight.textContent = "Start the session to see your projected mastery curve.";
-      }
-      if (predictiveChart) {
-        predictiveChart.setData(null);
-      }
-      return;
-    }
-
-    const accuracy = Math.round(toNumber(plot.probCorrect, 0) * 100);
-    if (elements.predictiveAccuracy) elements.predictiveAccuracy.textContent = `${accuracy}%`;
-    const finalTheta = toNumber(plot.finalTheta, plot.baselineTheta ?? 0);
-    if (elements.predictiveTheta) elements.predictiveTheta.textContent = finalTheta.toFixed(2);
-
-    if (elements.predictiveInsight) {
-      const baseline = toNumber(plot.baselineTheta, 0);
-      const delta = finalTheta - baseline;
-      const direction = delta >= 0 ? "upward" : "downward";
-      const magnitude = Math.abs(delta).toFixed(2);
-      elements.predictiveInsight.textContent = `Forecast shows a ${direction} shift of ${magnitude} theta over the next ${plot.horizon} items.`;
-    }
-
-    if (predictiveChart) {
-      predictiveChart.setData(plot);
-    }
-  }
-
-  function buildPrompt(unit) {
-    if (!unit) return emptyPrompt;
-    const topic = unit.topic || "this concept";
-    return `In your own words, explain ${topic} and include the key points.`;
-  }
-
-  function render() {
-    const state = machine.getState();
-    const phaseLabel = state.phase.charAt(0).toUpperCase() + state.phase.slice(1);
-    if (elements.shell) {
-      elements.shell.dataset.phase = state.phase;
-    }
-    if (elements.phase) elements.phase.textContent = phaseLabel;
-    if (elements.phaseChip) elements.phaseChip.textContent = phaseLabel;
-
-    if (elements.conceptTitle) {
-      elements.conceptTitle.textContent = state.currentUnit?.topic || "Awaiting session";
-    }
-    if (elements.conceptSummary) {
-      elements.conceptSummary.textContent =
-        state.currentUnit?.summary || "Start a session to load the next adaptive concept.";
-    }
-    renderKeyPoints(state.currentUnit?.keyPoints);
-    renderProgress(state.progress);
-
-    if (elements.prompt) {
-      elements.prompt.textContent = state.phase === "assessment" ? buildPrompt(state.currentUnit) : emptyPrompt;
-    }
-
-    if (elements.answer) {
-      elements.answer.disabled = state.phase !== "assessment";
-      if (state.phase !== "assessment") {
-        elements.answer.value = "";
-      }
-    }
-
-    if (state.phase === "result" && state.result) {
-      const tone = state.result.isCorrect ? "success" : "error";
-      setFeedback(state.result.feedback || (state.result.isCorrect ? "Correct response." : "Incorrect response."), tone);
-    } else {
-      setFeedback("", "neutral");
-    }
-
-    if (state.isComplete && elements.prompt) {
-      elements.prompt.textContent = "Session complete. You have mastered the current knowledge set.";
-    }
-
-    renderPredictivePlot(state.predictivePlot);
-  }
-
-  async function startSession() {
-    if (!api?.startLearning) {
-      setFeedback("Learning service not available.", "error");
-      return;
-    }
-    if (isStartingSession) return;
-    isStartingSession = true;
-    const requestId = ++sessionRequestId;
-    try {
-      const payload = await api.startLearning();
-      if (requestId !== sessionRequestId) return;
-      machine.setUnit(
-        payload?.currentUnit,
-        payload?.progress,
-        payload?.ability,
-        payload?.masteryLevels,
-        payload?.predictivePlot
-      );
-      render();
-    } catch (error) {
-      if (requestId !== sessionRequestId) return;
-      setFeedback(normalizeErrorMessage(error, "Failed to start learning session."), "error");
-    } finally {
-      if (requestId === sessionRequestId) {
-        isStartingSession = false;
-      }
-    }
-  }
-
-  async function submitAnswer() {
-    const state = machine.getState();
-    if (!api?.processLearningResponse) {
-      setFeedback("Learning service not available.", "error");
-      return;
-    }
-    if (!state.currentUnit) {
-      setFeedback("No active concept to assess.", "error");
-      return;
-    }
-    if (isSubmittingResponse) return;
-    isSubmittingResponse = true;
-    const requestId = ++responseRequestId;
-
-    try {
-      const payload = await api.processLearningResponse({
-        action: "response",
-        unitId: state.currentUnit.id,
-        answer: elements.answer?.value || "",
-      });
-      if (requestId !== responseRequestId) return;
-      machine.recordResult(
-        payload?.result,
-        payload?.nextUnit,
-        payload?.progress,
-        payload?.ability,
-        payload?.masteryLevels,
-        payload?.predictivePlot,
-        payload?.isComplete
-      );
-      render();
-    } catch (error) {
-      if (requestId !== responseRequestId) return;
-      setFeedback(normalizeErrorMessage(error, "Failed to process response."), "error");
-    } finally {
-      if (requestId === responseRequestId) {
-        isSubmittingResponse = false;
-      }
-    }
-  }
-
-  function bindEvents() {
-    if (elements.startAssessment) {
-      elements.startAssessment.addEventListener("click", () => {
-        machine.beginAssessment();
-        render();
-      });
-    }
-    if (elements.submitAnswer) {
-      elements.submitAnswer.addEventListener("click", () => {
-        submitAnswer();
-      });
-    }
-    if (elements.continueButton) {
-      elements.continueButton.addEventListener("click", () => {
-        machine.advance();
-        render();
-      });
-    }
-    if (elements.visualFormulaCopy) {
-      elements.visualFormulaCopy.addEventListener("click", async () => {
-        const formulaText = elements.visualFormula?.textContent?.trim();
-        if (!formulaText) return;
-        try {
-          await navigator.clipboard.writeText(formulaText);
-          elements.visualFormulaCopy.textContent = "Copied!";
-          if (formulaCopyReset) {
-            window.clearTimeout(formulaCopyReset);
-          }
-          formulaCopyReset = window.setTimeout(() => {
-            elements.visualFormulaCopy.textContent = formulaCopyLabel;
-            formulaCopyReset = null;
-          }, 1500);
-        } catch (error) {
-          console.error("Failed to copy formula", error);
-        }
-      });
-    }
-  }
-
-  function initialize() {
-    bindEvents();
-    render();
-    startSession();
-    if (elements.visualFormulaCopy) {
-      formulaCopyLabel = elements.visualFormulaCopy.textContent.trim() || "Copy";
-    }
-    if (elements.visualLab) {
-      const functionLogic =
-        elements.visualLab.dataset?.functionLogic ||
-        "A / Vd * exp(-k * t)";
-      if (elements.visualFormula) {
-        elements.visualFormula.textContent = functionLogic;
-      }
-      visualGraph = new InteractiveGraph({
-        rootDocument,
-        container: elements.visualLab,
-        functionLogic,
-        xLabel: "Time (hr)",
-        yLabel: "Concentration",
-        xRange: [0, 12],
-        parameters: [
-          { name: "A", label: "Dose (A)", min: 2, max: 12, step: 0.5, value: 8, precision: 2 },
-          { name: "k", label: "Elimination (k)", min: 0.05, max: 1.2, step: 0.05, value: 0.28, precision: 2 },
-          { name: "Vd", label: "Volume (Vd)", min: 5, max: 30, step: 1, value: 12, precision: 1 },
-        ],
-      });
-    }
-
-    if (elements.predictivePlot) {
-      predictiveChart = new PredictivePlot({
-        rootDocument,
-        container: elements.predictivePlot,
-      });
-    }
-  }
-
-  return {
-    elements,
-    initialize,
-    render,
-    startSession,
-    submitAnswer,
-    stateMachine: machine,
-  };
-}
-
-function createAnalyticsRenderer(rootDocument) {
-  const elements = {
-    bloomsChart: rootDocument.querySelector("#bloomsChart"),
-    difficultyMasteryChart: rootDocument.querySelector("#difficultyMasteryChart"),
+    exams: [],
+    activeExamId: null,
+    requestId: 0,
   };
 
   function clearElement(target) {
@@ -1726,219 +490,144 @@ function createAnalyticsRenderer(rootDocument) {
     target.innerHTML = "";
   }
 
-  function renderBloomsChart(distribution) {
-    if (!elements.bloomsChart) return;
-    clearElement(elements.bloomsChart);
+  function renderExamList() {
+    if (!elements.list) return;
+    clearElement(elements.list);
+    if (!state.exams.length) {
+      if (elements.empty) elements.empty.style.display = "block";
+      return;
+    }
+    if (elements.empty) elements.empty.style.display = "none";
 
-    const entries = Object.entries(distribution || {});
-    if (entries.length === 0) {
-      elements.bloomsChart.innerHTML = '<div class="chart-empty">No Bloom\'s level data available.</div>';
+    state.exams.forEach((exam) => {
+      const button = documentRoot.createElement("div");
+      button.className = exam.id === state.activeExamId ? "list-item active" : "list-item";
+
+      const title = documentRoot.createElement("div");
+      title.className = "list-item-title";
+      title.textContent = exam.title || "Practice Exam";
+
+      const meta = documentRoot.createElement("div");
+      meta.className = "list-item-meta";
+      meta.textContent = exam.createdAt ? `Created ${formatTimestamp(exam.createdAt)}` : "Draft exam";
+
+      button.appendChild(title);
+      button.appendChild(meta);
+      button.addEventListener("click", () => selectExam(exam.id));
+      elements.list.appendChild(button);
+    });
+  }
+
+  function renderExamSections(exam) {
+    if (!elements.sections) return;
+    clearElement(elements.sections);
+    if (!exam?.sections) {
+      const empty = documentRoot.createElement("div");
+      empty.className = "lesson-block-meta";
+      empty.textContent = "No exam content yet.";
+      elements.sections.appendChild(empty);
       return;
     }
 
-    const maxCount = Math.max(...entries.map(([, count]) => count));
-    const container = rootDocument.createElement("div");
-    container.className = "bar-chart";
+    Object.entries(exam.sections).forEach(([sectionName, items]) => {
+      const block = documentRoot.createElement("div");
+      block.className = "lesson-block";
 
-    // Standard Bloom's order
-    const order = ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"];
-    const sortedEntries = entries.sort((a, b) => {
-      const idxA = order.indexOf(a[0]);
-      const idxB = order.indexOf(b[0]);
-      if (idxA === -1 && idxB === -1) return a[0].localeCompare(b[0]);
-      if (idxA === -1) return 1;
-      if (idxB === -1) return -1;
-      return idxA - idxB;
-    });
+      const title = documentRoot.createElement("div");
+      title.className = "lesson-block-title";
+      title.textContent = sectionName.replace(/([A-Z])/g, " $1").trim();
+      block.appendChild(title);
 
-    sortedEntries.forEach(([level, count]) => {
-      const percent = (count / maxCount) * 100;
-      const bar = rootDocument.createElement("div");
-      bar.className = "bar";
-      bar.style.setProperty("--height", `${percent}%`);
-      
-      const span = rootDocument.createElement("span");
-      span.textContent = level;
-      
-      const countLabel = rootDocument.createElement("div");
-      countLabel.className = "bar-count";
-      countLabel.textContent = count;
-      
-      bar.appendChild(countLabel);
-      bar.appendChild(span);
-      container.appendChild(bar);
-    });
-
-    elements.bloomsChart.appendChild(container);
-  }
-
-  function renderDifficultyMasteryChart(pairs) {
-    if (!elements.difficultyMasteryChart) return;
-    clearElement(elements.difficultyMasteryChart);
-
-    if (!Array.isArray(pairs) || pairs.length === 0) {
-      elements.difficultyMasteryChart.innerHTML = '<div class="chart-empty">No difficulty vs. mastery data available.</div>';
-      return;
-    }
-
-    const container = rootDocument.createElement("div");
-    container.className = "scatter-plot";
-
-    pairs.forEach((pair) => {
-      const dot = rootDocument.createElement("div");
-      dot.className = "dot";
-      
-      // Map difficulty (-3 to 3) to 0-100%
-      const x = ((pair.difficulty + 3) / 6) * 100;
-      // Map mastery (0 to 1) to 0-100% (inverted for top-down coordinate system)
-      const y = (1 - pair.mastery) * 100;
-      
-      dot.style.left = `${x}%`;
-      dot.style.top = `${y}%`;
-      
-      // Add tooltip-like behavior via title
-      dot.title = `Difficulty: ${pair.difficulty.toFixed(2)}, Mastery: ${pair.mastery.toFixed(2)}`;
-      
-      container.appendChild(dot);
-    });
-
-    // Add axes labels
-    const xAxisLabel = rootDocument.createElement("div");
-    xAxisLabel.className = "scatter-axis-label x-axis";
-    xAxisLabel.textContent = "Difficulty";
-    
-    const yAxisLabel = rootDocument.createElement("div");
-    yAxisLabel.className = "scatter-axis-label y-axis";
-    yAxisLabel.textContent = "Mastery";
-    
-    container.appendChild(xAxisLabel);
-    container.appendChild(yAxisLabel);
-    elements.difficultyMasteryChart.appendChild(container);
-  }
-
-  function renderAnalytics(summary) {
-    renderBloomsChart(summary?.bloomsDistribution);
-    renderDifficultyMasteryChart(summary?.difficultyMasteryPairs);
-  }
-
-  return {
-    renderAnalytics,
-  };
-}
-
-function createNavigationManager(rootDocument) {
-  const main = rootDocument.querySelector("main");
-  const navItems = Array.from(rootDocument.querySelectorAll(".nav-item"));
-  const headerPill = rootDocument.querySelector(".main-header .pill");
-  const headerTitle = rootDocument.querySelector(".main-header h1");
-  const headerSub = rootDocument.querySelector(".main-header .subtitle");
-
-  const viewMetadata = {
-    home: { pill: "Home", title: "Learning Dashboard", sub: "Monitor graph coverage, mastery signals, and recent study activity." },
-    ingest: { pill: "Ingest", title: "Content Ingestion", sub: "Upload and process new lecture slides into your knowledge graph." },
-    lessons: { pill: "Lessons", title: "Study Modules", sub: "Browse and review knowledge units extracted from your lectures." },
-    learning: { pill: "CAT Sessions", title: "Adaptive Learning", sub: "Focus on the next best knowledge unit and reinforce mastery." },
-    analytics: { pill: "Analytics", title: "Performance Insights", sub: "Deep-dive into mastery distribution and knowledge graph density." },
-  };
-
-  function switchView(viewId) {
-    if (!main || !viewMetadata[viewId]) return;
-
-    // Update nav state
-    navItems.forEach((btn) => {
-      if (btn.dataset.view === viewId) {
-        btn.classList.add("active");
-      } else {
-        btn.classList.remove("active");
+      if (Array.isArray(items)) {
+        items.forEach((item, index) => {
+          const prompt = documentRoot.createElement("div");
+          prompt.className = "lesson-block-meta";
+          prompt.textContent = `${index + 1}. ${item.prompt || item.stem || ""}`;
+          block.appendChild(prompt);
+        });
       }
+
+      elements.sections.appendChild(block);
     });
+  }
 
-    // Update header
-    const meta = viewMetadata[viewId];
-    if (headerPill) headerPill.textContent = meta.pill;
-    if (headerTitle) headerTitle.textContent = meta.title;
-    if (headerSub) headerSub.textContent = meta.sub;
+  function renderExamDetails(exam) {
+    if (elements.title) elements.title.textContent = exam?.title || "Select an exam";
+    if (elements.summary) {
+      elements.summary.textContent = exam?.summary || "Each exam blends recall, synthesis, and clinical reasoning.";
+    }
+    if (elements.meta) {
+      elements.meta.textContent = exam?.createdAt ? `Created ${formatTimestamp(exam.createdAt)}` : "Awaiting exam";
+    }
+    renderExamSections(exam);
+  }
 
-    // Trigger transition
-    main.classList.remove("page-fade-in");
-    void main.offsetWidth;
-    main.classList.add("page-fade-in");
+  function selectExam(examId) {
+    state.activeExamId = examId;
+    const exam = state.exams.find((item) => item.id === examId) || null;
+    renderExamList();
+    renderExamDetails(exam);
+  }
 
-    // Set active view
-    main.dataset.activeView = viewId;
+  async function loadExams() {
+    if (!api?.getExams) return;
+    const requestId = ++state.requestId;
+    try {
+      const payload = await api.getExams();
+      if (requestId !== state.requestId) return;
+      state.exams = Array.isArray(payload?.exams) ? payload.exams : [];
+      renderExamList();
+      if (state.exams.length) {
+        selectExam(state.exams[0].id);
+      } else {
+        renderExamDetails(null);
+      }
+    } catch (error) {
+      if (requestId !== state.requestId) return;
+      if (elements.empty) {
+        elements.empty.textContent = normalizeErrorMessage(error, "Failed to load exams.");
+        elements.empty.style.display = "block";
+      }
+    }
+  }
+
+  async function handleGenerateExam() {
+    if (!api?.generateExam) return;
+    try {
+      await api.generateExam();
+      await loadExams();
+    } catch (error) {
+      if (elements.empty) {
+        elements.empty.textContent = normalizeErrorMessage(error, "Failed to generate exam.");
+        elements.empty.style.display = "block";
+      }
+    }
   }
 
   function initialize() {
-    navItems.forEach((item) => {
-      const viewId = item.dataset.view;
-      if (viewId) {
-        item.addEventListener("click", () => switchView(viewId));
-      }
-    });
-
-    // Handle special buttons that switch views
-    const openUpload = rootDocument.getElementById("openUpload");
-    if (openUpload) {
-      openUpload.addEventListener("click", () => switchView("ingest"));
-    }
-
-    // Default view
-    switchView("home");
+    if (elements.generateButton) elements.generateButton.addEventListener("click", handleGenerateExam);
+    loadExams();
   }
 
   return {
-    switchView,
     initialize,
+    loadExams,
   };
 }
 
-function setCurrentSessionDate(rootDocument) {
-  const label = rootDocument.getElementById("currentSessionDate");
-  if (!label) return;
-  const now = new Date();
-  const formatted = now.toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-  label.textContent = `Current Session: ${formatted}`;
-}
-if (typeof window !== "undefined" && typeof document !== "undefined") {
-  const analytics = createAnalyticsRenderer(document);
-  const dashboard = createDashboardRenderer(document);
-  const upload = createUploadRenderer(document, window.catApi, (summary) => {
-    dashboard.renderSummary(summary);
-    analytics.renderAnalytics(summary);
-  });
+function initializeApp() {
+  if (typeof document === "undefined") return;
+  const api = typeof window !== "undefined" ? window.catApi : null;
 
-  // Wrap dashboard.renderSummary to also update analytics
-  const originalRenderSummary = dashboard.renderSummary;
-  dashboard.renderSummary = (summary) => {
-    originalRenderSummary(summary);
-    analytics.renderAnalytics(summary);
-  };
+  setupNavigation(document);
 
-  dashboard.initialize();
-  upload.initialize();
-  const lessons = createLessonsRenderer(document, window.catApi);
-  lessons.initialize();
-  const learning = createLearningRenderer(document, window.catApi);
-  learning.initialize();
-  const navigation = createNavigationManager(document);
-  navigation.initialize();
-  setCurrentSessionDate(document);
+  const uploadRenderer = createUploadRenderer(document, api);
+  const lessonsRenderer = createLessonsRenderer(document, api);
+  const examRenderer = createExamRenderer(document, api);
+
+  uploadRenderer.initialize();
+  lessonsRenderer.initialize();
+  examRenderer.initialize();
 }
 
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    createDashboardRenderer,
-    createUploadRenderer,
-    createLessonsRenderer,
-    createLearningRenderer,
-    createLearningStateMachine,
-    createAnalyticsRenderer,
-    createNavigationManager,
-    formatTimestamp,
-    InteractiveGraph,
-    PredictivePlot,
-  };
-}
+initializeApp();

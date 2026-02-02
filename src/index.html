@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CAT-Pharmacy Home</title>
+    <title>CAT-Pharmacy Learning Studio</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,354 +19,148 @@
           <div class="brand-mark">CP</div>
           <div>
             <div class="brand-name">CAT-Pharmacy</div>
-            <div class="brand-sub">Adaptive knowledge studio</div>
+            <div class="brand-sub">Evidence-first learning studio</div>
           </div>
         </div>
 
         <nav class="nav">
-          <button class="nav-item active" data-view="home" title="View dashboard and mastery stats">Home</button>
-          <button class="nav-item" data-view="ingest" title="Upload and process new lecture slides">Ingest</button>
-          <button class="nav-item" data-view="lessons" title="Browse and review study modules">Lessons</button>
-          <button class="nav-item" data-view="learning" title="Start an adaptive testing session">CAT Sessions</button>
-          <button class="nav-item" data-view="analytics" title="View detailed learning progress">Analytics</button>
+          <button class="nav-item active" data-view="ingest" title="Upload and parse new source decks">Ingest</button>
+          <button class="nav-item" data-view="lessons" title="Launch brilliant-style lessons">Lessons</button>
+          <button class="nav-item" data-view="exams" title="Generate practice exams">Practice Exams</button>
         </nav>
 
-        <div class="sidebar-card">
-          <div class="sidebar-card-title">
-            Active Knowledge Graph <span class="status-badge live-pulse">Live</span>
+        <div class="sidebar-panel">
+          <div class="sidebar-title">Current Workspace</div>
+          <div class="sidebar-metric">
+            <span id="sidebarUnitCount">0</span> knowledge units
           </div>
-          <div class="sidebar-card-value">
-            <span id="sidebarNodeCount">0</span> nodes
-          </div>
-          <div class="sidebar-card-detail">
-            <span id="sidebarEdgeCount">0</span> edges mapped
-          </div>
-          <div class="sidebar-progress">
-            <div class="sidebar-progress-label">Graph Mastery</div>
-            <div class="sidebar-progress-bar">
-              <span id="sidebarMasteryFill"></span>
-            </div>
-          </div>
+          <div class="sidebar-meta" id="sidebarLastIngest">No ingestion yet</div>
         </div>
 
         <div class="sidebar-footer">
-          <button class="primary" id="syncButton">Sync with Python Backend</button>
-          <div class="sync-status" id="syncStatus">Ready to sync</div>
+          <div class="footer-title">Learning Science Pillars</div>
+          <div class="footer-note">Retrieval practice • Spaced reinforcement • Feedback loops</div>
         </div>
       </aside>
 
       <main class="main">
-        <header class="main-header">
-          <div>
-            <div class="pill">Home</div>
-            <h1>Learning Dashboard</h1>
-            <p class="subtitle">
-              Monitor graph coverage, mastery signals, and recent study activity before launching a CAT session.
-            </p>
-          </div>
-          <div class="header-actions">
-            <button class="ghost" id="openUpload">Open ingestion pipeline</button>
-            <button class="secondary">Review objectives</button>
-          </div>
-          <div id="currentSessionDate" class="session-date"></div>
-        </header>
-
-        <section class="upload-grid" id="uploadView">
-          <div class="card upload-card">
-            <div class="card-title">Upload PPTX</div>
-            <div class="upload-dropzone" id="uploadDropzone" data-state="idle">
-              <input type="file" id="uploadInput" accept=".pptx" />
-              <div class="upload-icon">UP</div>
-              <div class="upload-title">Drag & drop a PowerPoint deck</div>
-              <div class="upload-sub">or click to browse your files</div>
-              <div class="upload-meta" id="uploadFileName">No file selected</div>
-              <div class="upload-status" id="uploadStatus" data-tone="neutral">Ready to ingest</div>
+        <section class="view is-active" id="ingestView">
+          <header class="view-header">
+            <div>
+              <div class="pill">Ingest</div>
+              <h1>Knowledge Unit Intake</h1>
+              <p class="subtitle">
+                Upload lecture decks and extract knowledge units plus learning objectives in minutes.
+              </p>
             </div>
-          </div>
+          </header>
 
-          <div class="card">
-            <div class="card-title">Ingestion Checklist</div>
-            <div class="action-grid">
-              <div class="action-item">
-                <div class="action-title">Source validation</div>
-                <div class="action-sub">Confirm the deck is final and contains learning objectives.</div>
+          <div class="grid-two">
+            <div class="card">
+              <div class="card-title">Upload PPTX</div>
+              <div class="upload-dropzone" id="uploadDropzone" data-state="idle">
+                <input type="file" id="uploadInput" accept=".pptx" />
+                <div class="upload-icon">UP</div>
+                <div class="upload-title">Drag & drop a PowerPoint deck</div>
+                <div class="upload-sub">or click to browse your files</div>
+                <div class="upload-meta" id="uploadFileName">No file selected</div>
+                <div class="upload-status" id="uploadStatus" data-tone="neutral">Ready to ingest</div>
               </div>
-              <div class="action-item">
-                <div class="action-title">Knowledge unit extraction</div>
-                <div class="action-sub">Parser will map slides into knowledge units and key points.</div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Ingestion Snapshot</div>
+              <div class="snapshot" id="ingestSummary">
+                <div class="snapshot-item">
+                  <div class="snapshot-label">Knowledge Units</div>
+                  <div class="snapshot-value" id="ingestUnitCount">0</div>
+                </div>
+                <div class="snapshot-item">
+                  <div class="snapshot-label">Learning Objectives</div>
+                  <div class="snapshot-value" id="ingestObjectiveCount">0</div>
+                </div>
+                <div class="snapshot-item">
+                  <div class="snapshot-label">Last Source</div>
+                  <div class="snapshot-value" id="ingestSource">No file yet</div>
+                </div>
+                <div class="snapshot-item">
+                  <div class="snapshot-label">Updated</div>
+                  <div class="snapshot-value" id="ingestUpdatedAt">--</div>
+                </div>
               </div>
-              <div class="action-item">
-                <div class="action-title">Graph refresh</div>
-                <div class="action-sub">Nodes and edges update automatically after ingestion.</div>
+              <div class="snapshot-note">
+                Parsing is optimized for knowledge units and learning objectives only.
               </div>
             </div>
           </div>
         </section>
 
-        <section class="dashboard-view" id="homeView">
-          <section class="summary-grid">
-            <div class="card highlight">
-              <div class="card-title">Graph Totals</div>
-              <div class="metric-row">
-                <div>
-                  <div class="metric-value" id="nodeCount">0</div>
-                  <div class="metric-label">Nodes</div>
-                </div>
-                <div>
-                  <div class="metric-value" id="edgeCount">0</div>
-                  <div class="metric-label">Edges</div>
-                </div>
-              </div>
-              <div class="metric-note">Live snapshot from the Python data store.</div>
+        <section class="view" id="lessonsView">
+          <header class="view-header">
+            <div>
+              <div class="pill">Lessons</div>
+              <h1>Brilliant-Style Lesson Flow</h1>
+              <p class="subtitle">Turn knowledge units into interactive lessons with pre and post quizzes.</p>
             </div>
+            <div class="header-actions">
+              <button class="primary" id="lessonStartButton">Start Lesson</button>
+            </div>
+          </header>
 
+          <div class="grid-two">
             <div class="card">
-              <div class="card-title">Mastery Snapshot</div>
-              <div class="mastery-list" id="masteryList"></div>
+              <div class="card-title">Available Lessons</div>
+              <div class="list" id="lessonsList"></div>
+              <div class="empty" id="lessonsEmpty">No lessons generated yet. Start a lesson to build one.</div>
             </div>
 
-            <div class="card">
-              <div class="card-title">Spaced Repetition</div>
-              <div class="metric-value" id="dueCount">0</div>
-              <div class="metric-label">Reviews due now</div>
-              <div class="source-sub">Next review</div>
-              <div class="source-date" id="nextReviewAt">No scheduled reviews</div>
-            </div>
-
-            <div class="card">
-              <div class="card-title">Est. Time to Mastery</div>
-              <div class="metric-value" id="timeToMastery">0 minutes</div>
-              <div class="metric-label">Baseline at 10 minutes per node.</div>
-            </div>
-
-            <div class="card">
-              <div class="card-title">Learning Pulse</div>
-              <div class="pulse-title" id="pulseSummary">Waiting for content ingestion.</div>
-              <div class="pulse-sub">Adaptive sessions will rely on updated node coverage.</div>
-              <div class="pulse-bar">
-                <span></span>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-title">Knowledge Graph Source</div>
-              <div class="source-label" id="graphSource">Awaiting sync</div>
-              <div class="source-sub">Last updated</div>
-              <div class="source-date" id="lastUpdated">Not available</div>
-              <div class="source-sub">Last studied</div>
-              <div class="source-date" id="lastStudied">Never</div>
-            </div>
-          </section>
-
-          <section class="details-grid">
-            <div class="card">
-              <div class="card-title">Recently Studied Topics</div>
-              <div class="recent-list" id="recentTopics"></div>
-            </div>
-
-            <div class="stack">
-              <div class="card">
-                <div class="card-title">Node Types</div>
-                <div class="type-list" id="typeList"></div>
-              </div>
-              <div class="card">
-                <div class="card-title">Session Launch Checklist</div>
-                <ul class="checklist">
-                  <li>Confirm ingestion pipeline is synced</li>
-                  <li>Review objectives for the next cohort</li>
-                  <li>Validate item bank coverage by topic</li>
-                </ul>
-              </div>
-            </div>
-          </section>
-        </section>
-
-        <section class="lessons-view" id="lessonsView">
-          <div class="card lessons-shell">
-            <div class="lessons-sidebar">
-              <div class="card-title">Lessons</div>
-              <div class="lessons-list" id="lessonsList"></div>
-            </div>
-            <div class="lessons-content">
+            <div class="card lesson-detail">
               <div class="lesson-header">
-                <div class="pill">Lesson</div>
-                <h2 id="lessonTitle">Select a lesson</h2>
-                <p class="subtitle" id="lessonSummary">Choose a module to review slides, summaries, and key points.</p>
-                <div class="lesson-meta" id="lessonMeta"></div>
-              </div>
-
-              <div class="lesson-block">
-                <div class="card-title">Slides</div>
-                <div class="lesson-slides" id="lessonSlides"></div>
-              </div>
-
-              <div class="lesson-block">
-                <div class="card-title">Key Points</div>
-                <ul class="lesson-keypoints" id="lessonKeyPoints"></ul>
-              </div>
-            </div>
-          </div>
-          <div class="lesson-empty" id="lessonEmpty">No lessons available yet. Generate lessons after ingesting content.</div>
-        </section>
-
-        <section class="learning-view" id="learningView">
-          <div class="card learning-shell" id="learningShell" data-phase="learning">
-            <div class="learning-header">
-              <div>
-                <div class="pill">Personalized Learning</div>
-                <h2 id="learningTitle">Personalized Learning Session</h2>
-                <p class="subtitle" id="learningSubtitle">
-                  Focus on the next best knowledge unit and reinforce mastery with quick assessments.
+                <div class="lesson-stage" id="lessonStageLabel">Idle</div>
+                <h2 id="lessonTitle">Select or start a lesson</h2>
+                <p class="subtitle" id="lessonSummary">
+                  Lessons include a diagnostic pre-quiz, interactive checkpoints, and a mastery post-quiz.
                 </p>
-              </div>
-              <div class="learning-progress">
-                <div class="learning-progress-label">
-                  <span id="learningProgressText">0 of 0 complete</span>
-                  <span id="learningPhase">Learning</span>
-                </div>
-                <div class="learning-progress-bar">
-                  <span id="learningProgressFill"></span>
-                </div>
-              </div>
-            </div>
-
-            <div class="learning-body">
-              <div class="learning-concept">
-                <div class="card-title">Current Concept</div>
-                <div class="learning-concept-title" id="learningConceptTitle">Awaiting session</div>
-                <div class="learning-concept-summary" id="learningConceptSummary">
-                  Start a session to load the next adaptive concept.
-                </div>
-                <ul class="learning-keypoints" id="learningKeyPoints"></ul>
+                <div class="lesson-objectives" id="lessonObjectives"></div>
               </div>
 
-              <div class="learning-panel">
-                <div class="learning-panel-header">
-                  <div class="card-title">Assessment</div>
-                  <div class="learning-phase-chip" id="learningPhaseChip">Learning</div>
-                </div>
-                <div class="learning-prompt" id="learningPrompt">
-                  Review the concept summary and begin the quick check when ready.
-                </div>
-                <textarea
-                  class="learning-answer"
-                  id="learningAnswer"
-                  placeholder="Type a short explanation or recall the key points..."
-                ></textarea>
-                <div class="learning-feedback" id="learningFeedback"></div>
-                <div class="learning-actions">
-                  <button class="secondary" id="learningStartAssessment">Start assessment</button>
-                  <button class="primary" id="learningSubmitAnswer">Submit answer</button>
-                  <button class="ghost" id="learningContinue">Continue</button>
-                </div>
-              </div>
-            </div>
+              <div class="lesson-section" id="lessonPreQuiz"></div>
+              <div class="lesson-section" id="lessonCore"></div>
+              <div class="lesson-section" id="lessonPostQuiz"></div>
 
-            <div class="visual-lab">
-              <div class="visual-lab-header">
-                <div>
-                  <div class="card-title">Visual Lab</div>
-                  <div class="visual-lab-title">Pharmacokinetic decay explorer</div>
-                  <div class="visual-lab-subtitle">
-                    Tune dose, clearance, and volume to see how concentration shifts across time.
-                  </div>
-                </div>
-                <div class="visual-lab-formula">
-                  <div class="visual-lab-formula-label">Model</div>
-                  <div class="visual-lab-formula-value" id="visualLabFormula">A / Vd * exp(-k * t)</div>
-                  <button class="ghost visual-lab-formula-copy" id="visualLabFormulaCopy" type="button">
-                    Copy
-                  </button>
-                </div>
-              </div>
-              <div class="visual-lab-body">
-                <div
-                  class="visual-lab-canvas"
-                  id="visualLab"
-                  data-function-logic="A / Vd * exp(-k * t)"
-                ></div>
-                <div class="visual-lab-insights">
-                  <div class="visual-lab-insight">
-                    <div class="visual-lab-insight-title">Clinical readout</div>
-                    <div class="visual-lab-insight-body">
-                      Higher elimination (k) accelerates decline, while larger volume buffers the peak.
-                    </div>
-                  </div>
-                  <div class="visual-lab-insight">
-                    <div class="visual-lab-insight-title">Try this</div>
-                    <div class="visual-lab-insight-body">
-                      Increase dose and watch the curve scale while half-life remains tied to k.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card predictive-plot">
-              <div class="predictive-plot-header">
-                <div>
-                  <div class="card-title">Predictive Plotting</div>
-                  <div class="predictive-plot-title">Active learning forecast</div>
-                  <div class="predictive-plot-subtitle">
-                    See how your ability is expected to evolve across the next adaptive checks.
-                  </div>
-                </div>
-                <div class="predictive-plot-metrics">
-                  <div class="predictive-metric">
-                    <div class="predictive-metric-label">Expected accuracy</div>
-                    <div class="predictive-metric-value" id="predictiveAccuracy">--</div>
-                  </div>
-                  <div class="predictive-metric">
-                    <div class="predictive-metric-label">Projected theta</div>
-                    <div class="predictive-metric-value" id="predictiveTheta">--</div>
-                  </div>
-                </div>
-              </div>
-              <div class="predictive-plot-body">
-                <div class="predictive-plot-canvas" id="predictivePlot"></div>
-                <div class="predictive-plot-insight" id="predictiveInsight">
-                  Start the session to see your projected mastery curve.
-                </div>
+              <div class="lesson-actions">
+                <button class="ghost" id="lessonContinueButton">Continue</button>
               </div>
             </div>
           </div>
         </section>
 
-        <section class="analytics-view" id="analyticsView">
-          <div class="card analytics-hero">
-            <div class="card-title">Learning Analytics</div>
-            <h1>Performance Insights</h1>
-            <p class="subtitle">Deep-dive into mastery distribution and knowledge graph density.</p>
-          </div>
+        <section class="view" id="examsView">
+          <header class="view-header">
+            <div>
+              <div class="pill">Practice Exams</div>
+              <h1>Exam Builder</h1>
+              <p class="subtitle">Generate mixed-format exams: open response, fill-in, and case-based MCQ.</p>
+            </div>
+            <div class="header-actions">
+              <button class="primary" id="examGenerateButton">Generate Exam</button>
+            </div>
+          </header>
 
-          <div class="analytics-grid">
+          <div class="grid-two">
             <div class="card">
-              <div class="card-title">Bloom's Taxonomy Distribution</div>
-              <div class="analytics-chart-container" id="bloomsChart">
-                <div class="chart-placeholder">
-                  <div class="bar-chart">
-                    <div class="bar" style="--height: 40%"><span>Remember</span></div>
-                    <div class="bar" style="--height: 60%"><span>Understand</span></div>
-                    <div class="bar" style="--height: 30%"><span>Apply</span></div>
-                    <div class="bar" style="--height: 15%"><span>Analyze</span></div>
-                  </div>
-                </div>
-              </div>
+              <div class="card-title">Exam Library</div>
+              <div class="list" id="examList"></div>
+              <div class="empty" id="examEmpty">No practice exams yet. Generate one to begin.</div>
             </div>
 
-            <div class="card">
-              <div class="card-title">Difficulty vs. Mastery</div>
-              <div class="analytics-chart-container" id="difficultyMasteryChart">
-                <div class="chart-placeholder">
-                  <div class="scatter-plot">
-                    <!-- CSS-based placeholder for now -->
-                    <div class="dot" style="top: 20%; left: 30%"></div>
-                    <div class="dot" style="top: 50%; left: 60%"></div>
-                    <div class="dot" style="top: 80%; left: 20%"></div>
-                    <div class="dot" style="top: 40%; left: 80%"></div>
-                  </div>
-                </div>
+            <div class="card" id="examDetail">
+              <div class="lesson-header">
+                <div class="lesson-stage" id="examMeta">Awaiting exam</div>
+                <h2 id="examTitle">Select an exam</h2>
+                <p class="subtitle" id="examSummary">Each exam blends recall, synthesis, and clinical reasoning.</p>
               </div>
+              <div class="exam-sections" id="examSections"></div>
             </div>
           </div>
         </section>

@@ -3,9 +3,8 @@
  * Handles application lifecycle, IPC communication, and Python backend integration.
  */
 
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const { spawn } = require('child_process');
-const { randomUUID } = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -257,19 +256,6 @@ function writeJson(filePath, payload) {
 }
 
 /**
- * Builds a skeleton knowledge graph from parsed units.
- */
-function buildGraphFromUnits(units) {
-  const nodes = (Array.isArray(units) ? units : []).map((unit) => ({
-    id: unit?.id || randomUUID(),
-    title: unit?.topic || unit?.summary || 'Untitled topic',
-    type: 'Concept',
-  }));
-
-  return { Nodes: nodes, Edges: [] };
-}
-
-/**
  * Wrapper for IPC handlers to provide centralized error handling and logging.
  */
 async function handleIpc(name, handler) {
@@ -286,15 +272,6 @@ async function handleIpc(name, handler) {
 app.whenReady().then(() => {
   createWindow();
 
-  // Dialog Handlers
-  handleIpc('dialog:openPptx', async () => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      filters: [{ name: 'PowerPoint', extensions: ['pptx'] }],
-    });
-    return result.canceled ? null : result.filePaths[0];
-  });
-
   // Processing Handlers
   handleIpc('process-upload', async (event, filePath) => {
     if (!filePath) throw new Error('No file path provided');
@@ -304,28 +281,39 @@ app.whenReady().then(() => {
 
     const units = await runPython('backend.parser', [filePath]);
     const unitsPath = path.join(dataDir, 'knowledge-units.json');
-    const graphPath = path.join(dataDir, `knowledge-graph-${Date.now()}.json`);
-    
-    writeJson(unitsPath, { updatedAt: new Date().toISOString(), sourceFile: filePath, units });
-    writeJson(graphPath, buildGraphFromUnits(units));
+    const updatedAt = new Date().toISOString();
+
+    writeJson(unitsPath, { updatedAt, sourceFile: filePath, units });
+
+    const objectiveCount = new Set(
+      (Array.isArray(units) ? units : []).flatMap((unit) =>
+        Array.isArray(unit?.learning_objectives) ? unit.learning_objectives : []
+      )
+    ).size;
+
+    const summary = {
+      unitCount: Array.isArray(units) ? units.length : 0,
+      objectiveCount,
+      sourceFile: path.basename(filePath),
+      updatedAt,
+    };
 
     event.sender.send('upload:status', { 
       message: 'Upload complete', 
       tone: 'success', 
       state: 'idle', 
-      fileName: path.basename(filePath) 
+      fileName: path.basename(filePath),
+      summary,
     });
 
-    return { unitCount: units.length, summary: await runPython('backend.session', ['--summary', '--data-dir', dataDir]) };
+    return summary;
   });
 
-  // Backend Sync Handlers
-  handleIpc('backend:sync', () => runPython('backend.session', ['--summary', '--data-dir', ensureDataDir()]));
+  // Lessons + Exams
   handleIpc('lessons:list', () => runPython('backend.lessons', ['--data-dir', ensureDataDir()]));
-  handleIpc('learning:start', () => runPython('backend.session', ['--process-response', '--data-dir', ensureDataDir()], JSON.stringify({ action: 'start' })));
-  handleIpc('learning:processResponse', (event, payload) =>
-    runPython('backend.session', ['--process-response', '--data-dir', ensureDataDir()], JSON.stringify(payload))
-  );
+  handleIpc('lessons:generate', () => runPython('backend.lessons', ['--generate', '--data-dir', ensureDataDir()]));
+  handleIpc('exams:list', () => runPython('backend.exams', ['--data-dir', ensureDataDir()]));
+  handleIpc('exams:generate', () => runPython('backend.exams', ['--generate', '--data-dir', ensureDataDir()]));
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
