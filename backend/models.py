@@ -8,6 +8,14 @@ from uuid import UUID, uuid4
 
 
 @dataclass(frozen=True)
+class VisualRepresentation:
+    type: str  # e.g., "diagram", "chart", "map"
+    data: Any  # JSON-serializable structure for rendering
+    caption: str
+    function_logic: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class KnowledgeUnit:
     id: UUID
     topic: str
@@ -16,6 +24,7 @@ class KnowledgeUnit:
     summary: str
     key_points: List[str]
     learning_objectives: List[str]
+    visualizations: List[VisualRepresentation] = field(default_factory=list)
 
     @staticmethod
     def create(
@@ -25,6 +34,7 @@ class KnowledgeUnit:
         summary: str,
         key_points: Iterable[str],
         learning_objectives: Optional[Iterable[str]] = None,
+        visualizations: Optional[Iterable[VisualRepresentation]] = None,
     ) -> "KnowledgeUnit":
         topic_value = topic.strip() if topic and topic.strip() else "General"
         subtopic_value = subtopic.strip() if subtopic and subtopic.strip() else ""
@@ -36,6 +46,7 @@ class KnowledgeUnit:
             if learning_objectives
             else []
         )
+        visuals = list(visualizations) if visualizations else []
 
         return KnowledgeUnit(
             id=uuid4(),
@@ -45,6 +56,7 @@ class KnowledgeUnit:
             summary=summary_value,
             key_points=points,
             learning_objectives=objectives,
+            visualizations=visuals,
         )
 
 
