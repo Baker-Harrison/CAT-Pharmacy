@@ -44,6 +44,30 @@ function getValue(source, ...keys) {
   return undefined;
 }
 
+function normalizeErrorMessage(error, fallback) {
+  const raw = error?.message || String(error || "");
+  const message = raw.trim();
+  const lower = message.toLowerCase();
+  if (lower.includes("python_not_found") || lower.includes("python executable not found") || lower.includes("enoent")) {
+    return "Python not found. Install Python 3 and restart CAT-Pharmacy.";
+  }
+  if (
+    lower.includes("pptx_invalid") ||
+    lower.includes("pptx format invalid") ||
+    lower.includes("badzipfile") ||
+    lower.includes("file is not a zip file")
+  ) {
+    return "PPTX format invalid. Export a valid .pptx file and try again.";
+  }
+  if (lower.includes("database locked") || lower.includes("locked")) {
+    return "Database locked. Please retry in a moment.";
+  }
+  if (lower.includes("network") || lower.includes("disconnect")) {
+    return "Network connection lost. Check your connection and try again.";
+  }
+  return message || fallback || "An unexpected error occurred.";
+}
+
 class InteractiveGraph {
   constructor(options) {
     if (!options || !options.container) {
@@ -401,7 +425,7 @@ function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
     uploadView: rootDocument.querySelector("#uploadView"),
   };
 
-  const state = { isUploading: false };
+  const state = { isUploading: false, requestId: 0 };
 
   function setStatus(message, tone = "neutral") {
     if (!elements.status) return;
@@ -436,22 +460,29 @@ function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
     if (state.isUploading) return;
 
     state.isUploading = true;
+    const requestId = ++state.requestId;
     setDropzoneState("busy");
     setFileName(displayName || filePath.split(/[\\/]/).pop());
     setStatus("Sending file to parser...", "neutral");
 
     try {
       const result = await api.processUpload(filePath);
+      if (requestId !== state.requestId) return;
       const unitCount = typeof result?.unitCount === "number" ? result.unitCount : 0;
       setStatus(`Parsed ${unitCount} knowledge units`, "success");
       if (typeof onSummaryUpdated === "function" && result?.summary) {
         onSummaryUpdated(result.summary);
+      } else if (!result?.summary) {
+        setStatus("Upload complete, but no summary returned.", "neutral");
       }
     } catch (error) {
-      setStatus(error?.message || "Upload failed", "error");
+      if (requestId !== state.requestId) return;
+      setStatus(normalizeErrorMessage(error, "Upload failed"), "error");
     } finally {
-      state.isUploading = false;
-      setDropzoneState("idle");
+      if (requestId === state.requestId) {
+        state.isUploading = false;
+        setDropzoneState("idle");
+      }
     }
   }
 
@@ -552,7 +583,7 @@ function createDashboardRenderer(rootDocument) {
     recentTopics: rootDocument.querySelector("#recentTopics"),
   };
 
-  const state = { isSyncing: false };
+  const state = { isSyncing: false, requestId: 0 };
 
   function setSyncStatus(message, tone = "neutral") {
     if (!elements.syncStatus) return;
@@ -737,18 +768,26 @@ function createDashboardRenderer(rootDocument) {
     }
 
     state.isSyncing = true;
+    const requestId = ++state.requestId;
     if (elements.syncButton) elements.syncButton.disabled = true;
     setSyncStatus("Syncing with Python backend...", "neutral");
 
     try {
       const summary = await window.catApi.syncBackend();
+      if (requestId !== state.requestId) return;
+      if (!summary) {
+        throw new Error("No data returned from backend.");
+      }
       renderSummary(summary);
       setSyncStatus("Sync complete", "success");
     } catch (error) {
-      setSyncStatus(error.message || "Sync failed", "error");
+      if (requestId !== state.requestId) return;
+      setSyncStatus(normalizeErrorMessage(error, "Sync failed"), "error");
     } finally {
-      state.isSyncing = false;
-      if (elements.syncButton) elements.syncButton.disabled = false;
+      if (requestId === state.requestId) {
+        state.isSyncing = false;
+        if (elements.syncButton) elements.syncButton.disabled = false;
+      }
     }
   }
 
@@ -791,6 +830,7 @@ function createLessonsRenderer(rootDocument, api) {
   const state = {
     lessons: [],
     activeLessonId: null,
+    requestId: 0,
   };
 
   function clearElement(target) {
@@ -1005,9 +1045,11 @@ function createLessonsRenderer(rootDocument, api) {
       setEmptyState(true, "Lessons service not available.");
       return;
     }
+    const requestId = ++state.requestId;
 
     try {
       const payload = await api.getLessons();
+      if (requestId !== state.requestId) return;
       const rawLessons = Array.isArray(payload?.lessons) ? payload.lessons : [];
       state.lessons = rawLessons.map((lesson, index) => normalizeLesson(lesson, index));
       renderLessonList();
@@ -1017,7 +1059,8 @@ function createLessonsRenderer(rootDocument, api) {
         renderLessonDetails(null);
       }
     } catch (error) {
-      setEmptyState(true, error?.message || "Failed to load lessons.");
+      if (requestId !== state.requestId) return;
+      setEmptyState(true, normalizeErrorMessage(error, "Failed to load lessons."));
     }
   }
 
@@ -1121,6 +1164,10 @@ function createLearningRenderer(rootDocument, api) {
   let visualGraph = null;
   let formulaCopyReset = null;
   let formulaCopyLabel = "Copy";
+  let sessionRequestId = 0;
+  let responseRequestId = 0;
+  let isStartingSession = false;
+  let isSubmittingResponse = false;
 
   function setFeedback(message, tone = "neutral") {
     if (!elements.feedback) return;
@@ -1210,12 +1257,21 @@ function createLearningRenderer(rootDocument, api) {
       setFeedback("Learning service not available.", "error");
       return;
     }
+    if (isStartingSession) return;
+    isStartingSession = true;
+    const requestId = ++sessionRequestId;
     try {
       const payload = await api.startLearning();
+      if (requestId !== sessionRequestId) return;
       machine.setUnit(payload?.currentUnit, payload?.progress, payload?.ability, payload?.masteryLevels);
       render();
     } catch (error) {
-      setFeedback(error?.message || "Failed to start learning session.", "error");
+      if (requestId !== sessionRequestId) return;
+      setFeedback(normalizeErrorMessage(error, "Failed to start learning session."), "error");
+    } finally {
+      if (requestId === sessionRequestId) {
+        isStartingSession = false;
+      }
     }
   }
 
@@ -1229,6 +1285,9 @@ function createLearningRenderer(rootDocument, api) {
       setFeedback("No active concept to assess.", "error");
       return;
     }
+    if (isSubmittingResponse) return;
+    isSubmittingResponse = true;
+    const requestId = ++responseRequestId;
 
     try {
       const payload = await api.processLearningResponse({
@@ -1236,6 +1295,7 @@ function createLearningRenderer(rootDocument, api) {
         unitId: state.currentUnit.id,
         answer: elements.answer?.value || "",
       });
+      if (requestId !== responseRequestId) return;
       machine.recordResult(
         payload?.result,
         payload?.nextUnit,
@@ -1246,7 +1306,12 @@ function createLearningRenderer(rootDocument, api) {
       );
       render();
     } catch (error) {
-      setFeedback(error?.message || "Failed to process response.", "error");
+      if (requestId !== responseRequestId) return;
+      setFeedback(normalizeErrorMessage(error, "Failed to process response."), "error");
+    } finally {
+      if (requestId === responseRequestId) {
+        isSubmittingResponse = false;
+      }
     }
   }
 

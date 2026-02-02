@@ -5,9 +5,13 @@ This module defines the data structures for Knowledge Units, Nodes, and Edges.
 
 from __future__ import annotations
 
+import json
+import os
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from uuid import UUID, uuid4
 
@@ -172,6 +176,52 @@ class DomainKnowledgeGraph:
 
 
 DEFAULT_MASTERY_LEVELS = ["Advanced", "Proficient", "Developing", "Novice", "Unknown"]
+
+_LOCK_TIMEOUT_SECONDS = 2.0
+_LOCK_SLEEP_SECONDS = 0.05
+
+
+def _acquire_file_lock(lock_path: Path, timeout: float = _LOCK_TIMEOUT_SECONDS) -> int:
+    start = time.monotonic()
+    while True:
+        try:
+            return os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+        except FileExistsError as exc:
+            if time.monotonic() - start >= timeout:
+                raise RuntimeError("Database locked") from exc
+            time.sleep(_LOCK_SLEEP_SECONDS)
+
+
+def _release_file_lock(lock_path: Path, fd: int) -> None:
+    try:
+        os.close(fd)
+    finally:
+        try:
+            lock_path.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def write_json_atomic(target_path: Path, payload: Any, *, indent: int = 2) -> None:
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = target_path.with_suffix(target_path.suffix + ".lock")
+    temp_path = target_path.with_name(
+        f".{target_path.name}.{os.getpid()}.{int(time.time() * 1000)}.tmp"
+    )
+    fd = _acquire_file_lock(lock_path)
+    try:
+        with temp_path.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=indent)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, target_path)
+    finally:
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
+        _release_file_lock(lock_path, fd)
 
 
 @dataclass(frozen=True)

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 from uuid import UUID, uuid4
 
-from backend.models import GraphSummary
+from backend.models import GraphSummary, write_json_atomic
 
 SESSION_STATE_FILE = "adaptive-session.json"
 KNOWLEDGE_UNITS_FILE = "knowledge-units.json"
@@ -449,7 +449,7 @@ def _save_session_state(data_dir: Optional[Path], state: dict) -> None:
         return
     target_dir.mkdir(parents=True, exist_ok=True)
     state_path = target_dir / SESSION_STATE_FILE
-    state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    write_json_atomic(state_path, state)
 
 
 def _resolve_student_state_save_path(data_dir: Optional[Path]) -> Optional[Path]:
@@ -633,7 +633,7 @@ def _save_student_state(
         "ability": ability,
         "knowledgeMasteries": mastery_list,
     }
-    save_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    write_json_atomic(save_path, payload)
 
 
 def process_response(payload: dict, data_dir: Optional[Path]) -> dict:
