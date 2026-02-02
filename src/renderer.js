@@ -1085,11 +1085,14 @@ function createLearningRenderer(rootDocument, api) {
     continueButton: rootDocument.querySelector("#learningContinue"),
     visualLab: rootDocument.querySelector("#visualLab"),
     visualFormula: rootDocument.querySelector("#visualLabFormula"),
+    visualFormulaCopy: rootDocument.querySelector("#visualLabFormulaCopy"),
   };
 
   const machine = createLearningStateMachine();
   const emptyPrompt = "Review the concept summary and begin the quick check when ready.";
   let visualGraph = null;
+  let formulaCopyReset = null;
+  let formulaCopyLabel = "Copy";
 
   function setFeedback(message, tone = "neutral") {
     if (!elements.feedback) return;
@@ -1237,12 +1240,34 @@ function createLearningRenderer(rootDocument, api) {
         render();
       });
     }
+    if (elements.visualFormulaCopy) {
+      elements.visualFormulaCopy.addEventListener("click", async () => {
+        const formulaText = elements.visualFormula?.textContent?.trim();
+        if (!formulaText) return;
+        try {
+          await navigator.clipboard.writeText(formulaText);
+          elements.visualFormulaCopy.textContent = "Copied!";
+          if (formulaCopyReset) {
+            window.clearTimeout(formulaCopyReset);
+          }
+          formulaCopyReset = window.setTimeout(() => {
+            elements.visualFormulaCopy.textContent = formulaCopyLabel;
+            formulaCopyReset = null;
+          }, 1500);
+        } catch (error) {
+          console.error("Failed to copy formula", error);
+        }
+      });
+    }
   }
 
   function initialize() {
     bindEvents();
     render();
     startSession();
+    if (elements.visualFormulaCopy) {
+      formulaCopyLabel = elements.visualFormulaCopy.textContent.trim() || "Copy";
+    }
     if (elements.visualLab) {
       const functionLogic =
         elements.visualLab.dataset?.functionLogic ||
