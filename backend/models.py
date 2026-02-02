@@ -230,6 +230,8 @@ class GraphSummary:
     edge_count: int
     node_types: Dict[str, int]
     mastery_levels: Dict[str, int]
+    blooms_distribution: Dict[str, int]
+    difficulty_mastery_pairs: List[Dict[str, float]]
     spaced_repetition: Dict[str, Optional[str]]
     source: str
     last_updated: Optional[str]
@@ -242,6 +244,8 @@ class GraphSummary:
             0,
             {},
             {level: 0 for level in DEFAULT_MASTERY_LEVELS},
+            {},
+            [],
             {"dueCount": 0, "nextReviewAt": None},
             "No graph data found",
             None,
@@ -261,13 +265,16 @@ class GraphSummary:
         nodes = _extract_items(graph_payload.get("Nodes") or graph_payload.get("nodes"))
         edges = _extract_items(graph_payload.get("Edges") or graph_payload.get("edges"))
         node_types = _build_node_type_counts(nodes)
-        mastery_levels, recent_topics = _build_mastery_snapshot(student_state, nodes, recent_limit)
+        blooms_distribution = _build_blooms_distribution(nodes)
+        mastery_levels, recent_topics, diff_mastery = _build_mastery_snapshot(student_state, nodes, recent_limit)
         spaced_repetition = _build_spaced_repetition_snapshot(student_state)
         return cls(
             len(nodes),
             len(edges),
             node_types,
             mastery_levels,
+            blooms_distribution,
+            diff_mastery,
             spaced_repetition,
             source,
             last_updated,
@@ -280,6 +287,8 @@ class GraphSummary:
             "edgeCount": self.edge_count,
             "nodeTypes": self.node_types,
             "masteryLevels": self.mastery_levels,
+            "bloomsDistribution": self.blooms_distribution,
+            "difficultyMasteryPairs": self.difficulty_mastery_pairs,
             "spacedRepetition": self.spaced_repetition,
             "source": self.source,
             "lastUpdated": self.last_updated,
@@ -300,24 +309,50 @@ def _build_node_type_counts(nodes: List[dict]) -> Dict[str, int]:
     return type_counts
 
 
+def _build_blooms_distribution(nodes: List[dict]) -> Dict[str, int]:
+    distribution: Dict[str, int] = {}
+    for node in nodes:
+        blooms = _get_value(node, "blooms_level", "BloomsLevel", "bloomsLevel") or "Unknown"
+        distribution[blooms] = distribution.get(blooms, 0) + 1
+    return distribution
+
+
 def _build_mastery_snapshot(
     student_state: Optional[dict],
     nodes: List[dict],
     recent_limit: int,
-) -> tuple[Dict[str, int], List[Dict[str, str]]]:
+) -> tuple[Dict[str, int], List[Dict[str, str]], List[Dict[str, float]]]:
     mastery_levels = {level: 0 for level in DEFAULT_MASTERY_LEVELS}
+    difficulty_mastery: List[Dict[str, float]] = []
+    
     if not isinstance(student_state, dict):
-        return mastery_levels, []
+        return mastery_levels, [], []
 
     mastery_data = student_state.get("knowledgeMasteries") or student_state.get("KnowledgeMasteries")
     mastery_items = _extract_items(mastery_data)
+    
+    mastery_by_node: Dict[str, dict] = {}
+    for mastery in mastery_items:
+        node_id = _get_value(mastery, "domainNodeId", "DomainNodeId", "nodeId", "NodeId")
+        if node_id:
+            mastery_by_node[str(node_id)] = mastery
 
     nodes_by_id: Dict[str, str] = {}
     for node in nodes:
         node_id = _get_value(node, "id", "Id")
         title = _get_value(node, "title", "Title") or "Untitled topic"
+        difficulty = _get_value(node, "difficulty", "Difficulty") or 0.0
+        
         if node_id:
-            nodes_by_id[str(node_id)] = title
+            node_id_str = str(node_id)
+            nodes_by_id[node_id_str] = title
+            
+            mastery_entry = mastery_by_node.get(node_id_str)
+            score = _get_value(mastery_entry, "score", "Score") if mastery_entry else 0.0
+            difficulty_mastery.append({
+                "difficulty": float(difficulty),
+                "mastery": float(score)
+            })
 
     recent_candidates: List[tuple[datetime, Dict[str, str]]] = []
 
@@ -349,7 +384,7 @@ def _build_mastery_snapshot(
 
     recent_candidates.sort(key=lambda item: item[0], reverse=True)
     recent_topics = [topic for _, topic in recent_candidates[:recent_limit]]
-    return mastery_levels, recent_topics
+    return mastery_levels, recent_topics, difficulty_mastery
 
 
 def _build_spaced_repetition_snapshot(student_state: Optional[dict]) -> Dict[str, Optional[str]]:

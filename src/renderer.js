@@ -1715,6 +1715,117 @@ function createLearningRenderer(rootDocument, api) {
   };
 }
 
+function createAnalyticsRenderer(rootDocument) {
+  const elements = {
+    bloomsChart: rootDocument.querySelector("#bloomsChart"),
+    difficultyMasteryChart: rootDocument.querySelector("#difficultyMasteryChart"),
+  };
+
+  function clearElement(target) {
+    if (!target) return;
+    target.innerHTML = "";
+  }
+
+  function renderBloomsChart(distribution) {
+    if (!elements.bloomsChart) return;
+    clearElement(elements.bloomsChart);
+
+    const entries = Object.entries(distribution || {});
+    if (entries.length === 0) {
+      elements.bloomsChart.innerHTML = '<div class="chart-empty">No Bloom\'s level data available.</div>';
+      return;
+    }
+
+    const maxCount = Math.max(...entries.map(([, count]) => count));
+    const container = rootDocument.createElement("div");
+    container.className = "bar-chart";
+
+    // Standard Bloom's order
+    const order = ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"];
+    const sortedEntries = entries.sort((a, b) => {
+      const idxA = order.indexOf(a[0]);
+      const idxB = order.indexOf(b[0]);
+      if (idxA === -1 && idxB === -1) return a[0].localeCompare(b[0]);
+      if (idxA === -1) return 1;
+      if (idxB === -1) return -1;
+      return idxA - idxB;
+    });
+
+    sortedEntries.forEach(([level, count]) => {
+      const percent = (count / maxCount) * 100;
+      const bar = rootDocument.createElement("div");
+      bar.className = "bar";
+      bar.style.setProperty("--height", `${percent}%`);
+      
+      const span = rootDocument.createElement("span");
+      span.textContent = level;
+      
+      const countLabel = rootDocument.createElement("div");
+      countLabel.className = "bar-count";
+      countLabel.textContent = count;
+      
+      bar.appendChild(countLabel);
+      bar.appendChild(span);
+      container.appendChild(bar);
+    });
+
+    elements.bloomsChart.appendChild(container);
+  }
+
+  function renderDifficultyMasteryChart(pairs) {
+    if (!elements.difficultyMasteryChart) return;
+    clearElement(elements.difficultyMasteryChart);
+
+    if (!Array.isArray(pairs) || pairs.length === 0) {
+      elements.difficultyMasteryChart.innerHTML = '<div class="chart-empty">No difficulty vs. mastery data available.</div>';
+      return;
+    }
+
+    const container = rootDocument.createElement("div");
+    container.className = "scatter-plot";
+
+    pairs.forEach((pair) => {
+      const dot = rootDocument.createElement("div");
+      dot.className = "dot";
+      
+      // Map difficulty (-3 to 3) to 0-100%
+      const x = ((pair.difficulty + 3) / 6) * 100;
+      // Map mastery (0 to 1) to 0-100% (inverted for top-down coordinate system)
+      const y = (1 - pair.mastery) * 100;
+      
+      dot.style.left = `${x}%`;
+      dot.style.top = `${y}%`;
+      
+      // Add tooltip-like behavior via title
+      dot.title = `Difficulty: ${pair.difficulty.toFixed(2)}, Mastery: ${pair.mastery.toFixed(2)}`;
+      
+      container.appendChild(dot);
+    });
+
+    // Add axes labels
+    const xAxisLabel = rootDocument.createElement("div");
+    xAxisLabel.className = "scatter-axis-label x-axis";
+    xAxisLabel.textContent = "Difficulty";
+    
+    const yAxisLabel = rootDocument.createElement("div");
+    yAxisLabel.className = "scatter-axis-label y-axis";
+    yAxisLabel.textContent = "Mastery";
+    
+    container.appendChild(xAxisLabel);
+    container.appendChild(yAxisLabel);
+    elements.difficultyMasteryChart.appendChild(container);
+  }
+
+  function renderAnalytics(summary) {
+    renderBloomsChart(summary?.bloomsDistribution);
+    renderDifficultyMasteryChart(summary?.difficultyMasteryPairs);
+  }
+
+  return {
+    renderAnalytics,
+  };
+}
+
 function createNavigationManager(rootDocument) {
   const main = rootDocument.querySelector("main");
   const navItems = Array.from(rootDocument.querySelectorAll(".nav-item"));
@@ -1792,10 +1903,20 @@ function setCurrentSessionDate(rootDocument) {
   label.textContent = `Current Session: ${formatted}`;
 }
 if (typeof window !== "undefined" && typeof document !== "undefined") {
+  const analytics = createAnalyticsRenderer(document);
   const dashboard = createDashboardRenderer(document);
   const upload = createUploadRenderer(document, window.catApi, (summary) => {
     dashboard.renderSummary(summary);
+    analytics.renderAnalytics(summary);
   });
+
+  // Wrap dashboard.renderSummary to also update analytics
+  const originalRenderSummary = dashboard.renderSummary;
+  dashboard.renderSummary = (summary) => {
+    originalRenderSummary(summary);
+    analytics.renderAnalytics(summary);
+  };
+
   dashboard.initialize();
   upload.initialize();
   const lessons = createLessonsRenderer(document, window.catApi);
@@ -1814,6 +1935,7 @@ if (typeof module !== "undefined" && module.exports) {
     createLessonsRenderer,
     createLearningRenderer,
     createLearningStateMachine,
+    createAnalyticsRenderer,
     createNavigationManager,
     formatTimestamp,
     InteractiveGraph,

@@ -1359,41 +1359,113 @@ h1 {
   }
 }
 
-@media (max-width: 960px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .sidebar-footer {
-    width: 100%;
-  }
-
-  .main-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .session-date {
-    position: static;
-    margin-top: 12px;
-    letter-spacing: 0.06em;
-  }
-  .visual-lab-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .predictive-plot-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .summary-grid {
-    grid-template-columns: 1fr;
-  }
+/* Analytics Charts */
+.analytics-chart-container {
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+  position: relative;
 }
+
+.chart-empty {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  height: 180px;
+  width: 100%;
+  padding: 20px 0 30px;
+}
+
+.bar {
+  flex: 1;
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  border-radius: 6px 6px 0 0;
+  height: var(--height, 0%);
+  position: relative;
+  transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 40px;
+}
+
+.bar:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 15px var(--accent-glow);
+}
+
+.bar span {
+  position: absolute;
+  bottom: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bar-count {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.scatter-plot {
+  width: 100%;
+  height: 200px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  margin: 10px 0 20px;
+}
+
+.scatter-plot .dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 8px var(--accent-glow);
+  transition: all 0.2s ease;
+  cursor: crosshair;
+}
+
+.scatter-plot .dot:hover {
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  z-index: 10;
+  box-shadow: 0 0 12px #ffffff;
+}
+
+.scatter-axis-label {
+  position: absolute;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.scatter-axis-label.x-axis {
+  bottom: 6px;
+  right: 10px;
+}
+
+.scatter-axis-label.y-axis {
+  top: 10px;
+  left: 6px;
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+}
+
