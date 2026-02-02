@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld('catApi', {
       }
     }),
   syncBackend: () => ipcRenderer.invoke('backend:sync'),
+  getLessons: () => ipcRenderer.invoke('lessons:list'),
 });

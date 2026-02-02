@@ -13,6 +13,14 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function getValue(source, ...keys) {
+  if (!source || typeof source !== "object") return undefined;
+  for (const key of keys) {
+    if (key in source) return source[key];
+  }
+  return undefined;
+}
+
 function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
   const elements = {
     dropzone: rootDocument.querySelector("#uploadDropzone"),
@@ -378,6 +386,263 @@ function createDashboardRenderer(rootDocument) {
   };
 }
 
+function createLessonsRenderer(rootDocument, api) {
+  const elements = {
+    list: rootDocument.querySelector("#lessonsList"),
+    empty: rootDocument.querySelector("#lessonEmpty"),
+    title: rootDocument.querySelector("#lessonTitle"),
+    summary: rootDocument.querySelector("#lessonSummary"),
+    slides: rootDocument.querySelector("#lessonSlides"),
+    keyPoints: rootDocument.querySelector("#lessonKeyPoints"),
+    meta: rootDocument.querySelector("#lessonMeta"),
+  };
+
+  const state = {
+    lessons: [],
+    activeLessonId: null,
+  };
+
+  function clearElement(target) {
+    if (!target) return;
+    target.innerHTML = "";
+  }
+
+  function setEmptyState(isVisible, message) {
+    if (!elements.empty) return;
+    const baseClass = "lesson-empty";
+    elements.empty.className = isVisible ? `${baseClass} is-visible` : baseClass;
+    if (message) {
+      elements.empty.textContent = message;
+    }
+  }
+
+  function normalizeLesson(rawLesson, index) {
+    const lesson = rawLesson && typeof rawLesson === "object" ? rawLesson : {};
+    const id = getValue(lesson, "id", "Id") ?? `lesson-${index}`;
+    const title = getValue(lesson, "title", "Title") || "Untitled lesson";
+    const summary =
+      getValue(lesson, "summary", "Summary", "description", "Description") || "No summary provided.";
+    const estimatedReadMinutes = toNumber(
+      getValue(lesson, "estimatedReadMinutes", "EstimatedReadMinutes"),
+      0
+    );
+    const progressPercent = toNumber(getValue(lesson, "progressPercent", "ProgressPercent"), 0);
+
+    const sectionsRaw = getValue(lesson, "sections", "Sections");
+    const sections = Array.isArray(sectionsRaw)
+      ? sectionsRaw.map((section, sectionIndex) => {
+          const sectionValue = section && typeof section === "object" ? section : {};
+          const heading =
+            getValue(sectionValue, "heading", "Heading") || `Section ${sectionIndex + 1}`;
+          const body = getValue(sectionValue, "body", "Body") || "";
+          const promptsRaw = getValue(sectionValue, "prompts", "Prompts");
+          const prompts = Array.isArray(promptsRaw)
+            ? promptsRaw
+                .map((prompt) => {
+                  if (typeof prompt === "string") return prompt;
+                  if (prompt && typeof prompt === "object") {
+                    return getValue(prompt, "prompt", "Prompt") || "";
+                  }
+                  return "";
+                })
+                .filter(Boolean)
+            : [];
+
+          return {
+            id: getValue(sectionValue, "id", "Id") ?? `${id}-section-${sectionIndex}`,
+            heading,
+            body,
+            prompts,
+          };
+        })
+      : [];
+
+    const keyPointsRaw = getValue(lesson, "keyPoints", "KeyPoints");
+    const keyPoints = Array.isArray(keyPointsRaw)
+      ? keyPointsRaw
+          .map((point) => (typeof point === "string" ? point.trim() : ""))
+          .filter(Boolean)
+      : [];
+
+    if (keyPoints.length === 0) {
+      sections.forEach((section) => {
+        section.prompts.forEach((prompt) => {
+          if (prompt) keyPoints.push(prompt);
+        });
+      });
+    }
+
+    return {
+      id: String(id),
+      title,
+      summary,
+      estimatedReadMinutes,
+      progressPercent,
+      sections,
+      keyPoints,
+    };
+  }
+
+  function renderLessonList() {
+    if (!elements.list) return;
+    clearElement(elements.list);
+
+    if (state.lessons.length === 0) {
+      setEmptyState(true, "No lessons available yet. Generate lessons after ingesting content.");
+      return;
+    }
+
+    setEmptyState(false);
+    state.lessons.forEach((lesson) => {
+      const button = rootDocument.createElement("button");
+      const isActive = lesson.id === state.activeLessonId;
+      button.className = isActive ? "lesson-item active" : "lesson-item";
+      button.dataset.lessonId = lesson.id;
+
+      const title = rootDocument.createElement("div");
+      title.className = "lesson-item-title";
+      title.textContent = lesson.title;
+
+      const meta = rootDocument.createElement("div");
+      meta.className = "lesson-item-meta";
+      const minutesLabel = lesson.estimatedReadMinutes
+        ? `${lesson.estimatedReadMinutes} min`
+        : "Read time n/a";
+      meta.textContent = `${minutesLabel} • ${Math.round(lesson.progressPercent)}% complete`;
+
+      button.appendChild(title);
+      button.appendChild(meta);
+
+      button.addEventListener("click", () => {
+        selectLesson(lesson.id);
+      });
+
+      elements.list.appendChild(button);
+    });
+  }
+
+  function renderLessonDetails(lesson) {
+    if (elements.title) elements.title.textContent = lesson?.title || "Select a lesson";
+    if (elements.summary)
+      elements.summary.textContent =
+        lesson?.summary || "Choose a module to review slides, summaries, and key points.";
+
+    if (elements.meta) {
+      clearElement(elements.meta);
+      if (lesson) {
+        const chips = [];
+        if (lesson.estimatedReadMinutes) {
+          chips.push(`Estimated read: ${lesson.estimatedReadMinutes} min`);
+        }
+        chips.push(`Progress: ${Math.round(lesson.progressPercent)}%`);
+        chips.push(`Sections: ${lesson.sections.length}`);
+
+        chips.forEach((text) => {
+          const chip = rootDocument.createElement("div");
+          chip.className = "lesson-chip";
+          chip.textContent = text;
+          elements.meta.appendChild(chip);
+        });
+      }
+    }
+
+    if (elements.slides) {
+      clearElement(elements.slides);
+      if (!lesson || lesson.sections.length === 0) {
+        const empty = rootDocument.createElement("div");
+        empty.className = "lesson-slide";
+        empty.textContent = "No slide content available for this lesson.";
+        elements.slides.appendChild(empty);
+      } else {
+        lesson.sections.forEach((section) => {
+          const slide = rootDocument.createElement("div");
+          slide.className = "lesson-slide";
+
+          const heading = rootDocument.createElement("div");
+          heading.className = "lesson-slide-title";
+          heading.textContent = section.heading;
+
+          const body = rootDocument.createElement("div");
+          body.className = "lesson-slide-body";
+          body.textContent = section.body || "No slide summary available.";
+
+          slide.appendChild(heading);
+          slide.appendChild(body);
+
+          if (section.prompts.length > 0) {
+            const promptList = rootDocument.createElement("ul");
+            promptList.className = "lesson-slide-prompts";
+            section.prompts.forEach((prompt) => {
+              const li = rootDocument.createElement("li");
+              li.textContent = prompt;
+              promptList.appendChild(li);
+            });
+            slide.appendChild(promptList);
+          }
+
+          elements.slides.appendChild(slide);
+        });
+      }
+    }
+
+    if (elements.keyPoints) {
+      clearElement(elements.keyPoints);
+      const points = lesson?.keyPoints ?? [];
+      if (points.length === 0) {
+        const empty = rootDocument.createElement("li");
+        empty.textContent = "No key points available yet.";
+        elements.keyPoints.appendChild(empty);
+      } else {
+        points.forEach((point) => {
+          const li = rootDocument.createElement("li");
+          li.textContent = point;
+          elements.keyPoints.appendChild(li);
+        });
+      }
+    }
+  }
+
+  function selectLesson(lessonId) {
+    state.activeLessonId = lessonId;
+    const lesson = state.lessons.find((item) => item.id === lessonId) || null;
+    renderLessonList();
+    renderLessonDetails(lesson);
+  }
+
+  async function loadLessons() {
+    if (!api?.getLessons) {
+      setEmptyState(true, "Lessons service not available.");
+      return;
+    }
+
+    try {
+      const payload = await api.getLessons();
+      const rawLessons = Array.isArray(payload?.lessons) ? payload.lessons : [];
+      state.lessons = rawLessons.map((lesson, index) => normalizeLesson(lesson, index));
+      renderLessonList();
+      if (state.lessons.length > 0) {
+        selectLesson(state.lessons[0].id);
+      } else {
+        renderLessonDetails(null);
+      }
+    } catch (error) {
+      setEmptyState(true, error?.message || "Failed to load lessons.");
+    }
+  }
+
+  function initialize() {
+    renderLessonDetails(null);
+    loadLessons();
+  }
+
+  return {
+    elements,
+    initialize,
+    loadLessons,
+    selectLesson,
+  };
+}
+
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   const dashboard = createDashboardRenderer(document);
   const upload = createUploadRenderer(document, window.catApi, (summary) => {
@@ -385,8 +650,15 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   });
   dashboard.initialize();
   upload.initialize();
+  const lessons = createLessonsRenderer(document, window.catApi);
+  lessons.initialize();
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { createDashboardRenderer, createUploadRenderer, formatTimestamp };
+  module.exports = {
+    createDashboardRenderer,
+    createUploadRenderer,
+    createLessonsRenderer,
+    formatTimestamp,
+  };
 }
