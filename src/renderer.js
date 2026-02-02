@@ -19,6 +19,17 @@ function formatTimestampOr(value, fallback) {
   return date.toLocaleString();
 }
 
+function formatDurationMinutes(value) {
+  const minutes = Math.max(0, Math.round(toNumber(value, 0)));
+  if (minutes < 60) {
+    return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  }
+  const hours = minutes / 60;
+  const rounded = Math.round(hours * 10) / 10;
+  const display = Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1).replace(/\.0$/, "");
+  return `${display} hour${rounded === 1 ? "" : "s"}`;
+}
+
 function toNumber(value, fallback = 0) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = Number.parseFloat(value);
@@ -533,6 +544,7 @@ function createDashboardRenderer(rootDocument) {
     graphSourceLabel: rootDocument.querySelector("#graphSource"),
     lastUpdatedLabel: rootDocument.querySelector("#lastUpdated"),
     lastStudiedLabel: rootDocument.querySelector("#lastStudied"),
+    timeToMasteryLabel: rootDocument.querySelector("#timeToMastery"),
     typeList: rootDocument.querySelector("#typeList"),
     pulseSummary: rootDocument.querySelector("#pulseSummary"),
     masteryList: rootDocument.querySelector("#masteryList"),
@@ -680,6 +692,13 @@ function createDashboardRenderer(rootDocument) {
     }
     if (elements.lastStudiedLabel) {
       elements.lastStudiedLabel.textContent = formatTimestampOr(summary?.lastUpdated, "Never");
+    }
+
+    if (elements.timeToMasteryLabel) {
+      const advancedCount = toNumber(summary?.masteryLevels?.["Advanced"], 0);
+      const proficientCount = toNumber(summary?.masteryLevels?.["Proficient"], 0);
+      const unmasteredCount = Math.max(0, nodeCount - advancedCount - proficientCount);
+      elements.timeToMasteryLabel.textContent = formatDurationMinutes(unmasteredCount * 10);
     }
 
     renderTypeList(summary?.nodeTypes);
