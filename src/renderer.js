@@ -541,6 +541,7 @@ function createDashboardRenderer(rootDocument) {
     edgeCountLabel: rootDocument.querySelector("#edgeCount"),
     sidebarNodeCountLabel: rootDocument.querySelector("#sidebarNodeCount"),
     sidebarEdgeCountLabel: rootDocument.querySelector("#sidebarEdgeCount"),
+    sidebarMasteryFill: rootDocument.querySelector("#sidebarMasteryFill"),
     graphSourceLabel: rootDocument.querySelector("#graphSource"),
     lastUpdatedLabel: rootDocument.querySelector("#lastUpdated"),
     lastStudiedLabel: rootDocument.querySelector("#lastStudied"),
@@ -683,6 +684,14 @@ function createDashboardRenderer(rootDocument) {
     if (elements.edgeCountLabel) elements.edgeCountLabel.textContent = `${edgeCount}`;
     if (elements.sidebarNodeCountLabel) elements.sidebarNodeCountLabel.textContent = `${nodeCount}`;
     if (elements.sidebarEdgeCountLabel) elements.sidebarEdgeCountLabel.textContent = `${edgeCount}`;
+
+    if (elements.sidebarMasteryFill) {
+      const advancedCount = toNumber(summary?.masteryLevels?.["Advanced"], 0);
+      const proficientCount = toNumber(summary?.masteryLevels?.["Proficient"], 0);
+      const mastered = advancedCount + proficientCount;
+      const percent = nodeCount > 0 ? (mastered / nodeCount) * 100 : 0;
+      elements.sidebarMasteryFill.style.width = `${percent}%`;
+    }
 
     if (elements.graphSourceLabel) {
       elements.graphSourceLabel.textContent = summary?.source || "No graph data found";
