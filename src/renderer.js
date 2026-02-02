@@ -1301,6 +1301,25 @@ function createLearningRenderer(rootDocument, api) {
   };
 }
 
+function bindSidebarPageTransitions(rootDocument) {
+  const main = rootDocument.querySelector("main");
+  if (!main) return;
+  const navItems = Array.from(rootDocument.querySelectorAll(".nav-item"));
+  if (navItems.length === 0) return;
+
+  const triggerFadeIn = () => {
+    main.classList.remove("page-fade-in");
+    void main.offsetWidth;
+    main.classList.add("page-fade-in");
+  };
+
+  navItems.forEach((item) => {
+    item.addEventListener("click", () => {
+      triggerFadeIn();
+    });
+  });
+}
+
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   const dashboard = createDashboardRenderer(document);
   const upload = createUploadRenderer(document, window.catApi, (summary) => {
@@ -1312,6 +1331,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   lessons.initialize();
   const learning = createLearningRenderer(document, window.catApi);
   learning.initialize();
+  bindSidebarPageTransitions(document);
 }
 
 if (typeof module !== "undefined" && module.exports) {
