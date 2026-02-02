@@ -586,6 +586,141 @@ h1 {
   gap: 18px;
 }
 
+.lessons-view {
+  display: grid;
+  gap: 18px;
+}
+
+.lessons-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 24px;
+}
+
+.lessons-sidebar {
+  display: grid;
+  gap: 16px;
+}
+
+.lessons-list {
+  display: grid;
+  gap: 12px;
+}
+
+.lesson-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.lesson-item:hover,
+.lesson-item.active {
+  border-color: rgba(88, 225, 193, 0.4);
+  background: rgba(88, 225, 193, 0.1);
+  transform: translateY(-1px);
+}
+
+.lesson-item-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.lesson-item-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.lessons-content {
+  display: grid;
+  gap: 20px;
+}
+
+.lesson-header {
+  display: grid;
+  gap: 6px;
+}
+
+.lesson-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.lesson-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+}
+
+.lesson-block {
+  display: grid;
+  gap: 12px;
+}
+
+.lesson-slides {
+  display: grid;
+  gap: 12px;
+}
+
+.lesson-slide {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 8px;
+}
+
+.lesson-slide-title {
+  font-weight: 600;
+}
+
+.lesson-slide-body {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.lesson-slide-prompts {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.lesson-keypoints {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.lesson-empty {
+  display: none;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.lesson-empty.is-visible {
+  display: block;
+}
+
 @keyframes slide-up {
   from {
     opacity: 0;
@@ -646,6 +781,10 @@ h1 {
   }
 
   .upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lessons-shell {
     grid-template-columns: 1fr;
   }
 }

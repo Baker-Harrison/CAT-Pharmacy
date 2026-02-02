@@ -105,6 +105,50 @@ function runPythonGraphSummary(dataDir) {
   });
 }
 
+function runPythonLessons(dataDir) {
+  return new Promise((resolve, reject) => {
+    const args = ['-m', 'backend.lessons'];
+    if (dataDir) {
+      args.push('--data-dir', dataDir);
+    } else if (process.env.CAT_DATA_DIR) {
+      args.push('--data-dir', process.env.CAT_DATA_DIR);
+    }
+
+    const python = spawn(DEFAULT_PYTHON, args, {
+      cwd: path.resolve(__dirname, '..'),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    python.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    python.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    python.on('error', (error) => {
+      reject(error);
+    });
+
+    python.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr || `Lessons exited with code ${code}`));
+        return;
+      }
+      try {
+        const parsed = JSON.parse(stdout);
+        resolve(parsed);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
+
 function ensureDataDir() {
   const dataDir = path.join(app.getPath('userData'), 'data');
   fs.mkdirSync(dataDir, { recursive: true });
@@ -210,6 +254,11 @@ app.whenReady().then(() => {
   ipcMain.handle('backend:sync', async () => {
     const dataDir = ensureDataDir();
     return runPythonGraphSummary(dataDir);
+  });
+
+  ipcMain.handle('lessons:list', async () => {
+    const dataDir = ensureDataDir();
+    return runPythonLessons(dataDir);
   });
 
   app.on('activate', () => {
