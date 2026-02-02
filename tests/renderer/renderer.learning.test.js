@@ -6,7 +6,13 @@ const { createLearningStateMachine } = require('../../src/renderer');
 test('learning state transitions: Learning -> Assessment -> Result', () => {
   const machine = createLearningStateMachine();
 
-  machine.setUnit({ id: 'unit-1', topic: 'Cardiac Output' }, { completed: 0, total: 3, percent: 0 });
+  machine.setUnit(
+    { id: 'unit-1', topic: 'Cardiac Output' },
+    { completed: 0, total: 3, percent: 0 },
+    null,
+    null,
+    { horizon: 3, baselineTheta: -1.1, points: [] }
+  );
   assert.equal(machine.getState().phase, 'learning');
 
   machine.beginAssessment();
@@ -15,7 +21,10 @@ test('learning state transitions: Learning -> Assessment -> Result', () => {
   machine.recordResult(
     { isCorrect: true, feedback: 'Nice.' },
     { id: 'unit-2', topic: 'SVR' },
-    { completed: 1, total: 3, percent: 33.3 }
+    { completed: 1, total: 3, percent: 33.3 },
+    null,
+    null,
+    { horizon: 3, baselineTheta: -0.8, points: [] }
   );
   assert.equal(machine.getState().phase, 'result');
   assert.equal(machine.getState().result.isCorrect, true);
@@ -27,11 +36,26 @@ test('learning state transitions: Learning -> Assessment -> Result', () => {
 
 test('learning state does not advance when complete', () => {
   const machine = createLearningStateMachine();
-  machine.setUnit({ id: 'unit-1', topic: 'Pharmacokinetics' }, { completed: 1, total: 1, percent: 100 }, null, null, true);
+  machine.setUnit(
+    { id: 'unit-1', topic: 'Pharmacokinetics' },
+    { completed: 1, total: 1, percent: 100 },
+    null,
+    null,
+    null,
+    true
+  );
   machine.beginAssessment();
   assert.equal(machine.getState().phase, 'learning');
 
-  machine.recordResult({ isCorrect: true }, null, { completed: 1, total: 1, percent: 100 }, null, null, true);
+  machine.recordResult(
+    { isCorrect: true },
+    null,
+    { completed: 1, total: 1, percent: 100 },
+    null,
+    null,
+    null,
+    true
+  );
   assert.equal(machine.getState().phase, 'result');
 
   machine.advance();

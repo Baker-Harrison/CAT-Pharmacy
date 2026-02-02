@@ -415,6 +415,258 @@ class InteractiveGraph {
   }
 }
 
+class PredictivePlot {
+  constructor(options) {
+    if (!options || !options.container) {
+      throw new Error("PredictivePlot requires a container element.");
+    }
+    this.container = options.container;
+    this.document =
+      options.rootDocument || this.container.ownerDocument || (typeof document !== "undefined" ? document : null);
+    this.width = toNumber(options.width, 520);
+    this.height = toNumber(options.height, 220);
+    this.padding = toNumber(options.padding, 32);
+    this.plot = null;
+    this.build();
+  }
+
+  createSvgElement(tagName) {
+    if (this.document?.createElementNS) {
+      return this.document.createElementNS("http://www.w3.org/2000/svg", tagName);
+    }
+    return this.document?.createElement ? this.document.createElement(tagName) : null;
+  }
+
+  build() {
+    if (!this.container) return;
+    this.container.innerHTML = "";
+    this.container.classList?.add("predictive-plot-chart");
+
+    this.svg = this.createSvgElement("svg");
+    if (!this.svg) return;
+    this.svg.setAttribute("viewBox", `0 0 ${this.width} ${this.height}`);
+    this.svg.setAttribute("width", "100%");
+    this.svg.setAttribute("height", "100%");
+    this.svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+    this.gridGroup = this.createSvgElement("g");
+    this.axisGroup = this.createSvgElement("g");
+    this.bandGroup = this.createSvgElement("g");
+    this.lineGroup = this.createSvgElement("g");
+    if (this.gridGroup) this.svg.appendChild(this.gridGroup);
+    if (this.axisGroup) this.svg.appendChild(this.axisGroup);
+    if (this.bandGroup) this.svg.appendChild(this.bandGroup);
+    if (this.lineGroup) this.svg.appendChild(this.lineGroup);
+
+    this.bandPath = this.createSvgElement("path");
+    if (this.bandPath) {
+      this.bandPath.setAttribute("fill", "var(--predictive-band)");
+      this.bandPath.setAttribute("stroke", "none");
+      this.bandGroup?.appendChild(this.bandPath);
+    }
+
+    this.linePath = this.createSvgElement("path");
+    if (this.linePath) {
+      this.linePath.setAttribute("fill", "none");
+      this.linePath.setAttribute("stroke", "var(--predictive-line)");
+      this.linePath.setAttribute("stroke-width", "3");
+      this.linePath.setAttribute("stroke-linecap", "round");
+      this.linePath.setAttribute("stroke-linejoin", "round");
+      this.lineGroup?.appendChild(this.linePath);
+    }
+
+    this.container.appendChild(this.svg);
+    this.emptyLabel = this.document?.createElement ? this.document.createElement("div") : null;
+    if (this.emptyLabel) {
+      this.emptyLabel.className = "predictive-plot-empty";
+      this.emptyLabel.textContent = "Predictive plot will appear once the session starts.";
+      this.container.appendChild(this.emptyLabel);
+    }
+  }
+
+  setData(plot) {
+    this.plot = plot;
+    this.update();
+  }
+
+  updateAxes(yMin, yMax, xMax) {
+    if (!this.axisGroup) return;
+    this.axisGroup.innerHTML = "";
+    if (this.gridGroup?.replaceChildren) {
+      this.gridGroup.replaceChildren();
+    } else if (this.gridGroup) {
+      this.gridGroup.innerHTML = "";
+    }
+
+    const left = this.padding;
+    const right = this.width - this.padding;
+    const top = this.padding;
+    const bottom = this.height - this.padding;
+
+    const xAxis = this.createSvgElement("line");
+    const yAxis = this.createSvgElement("line");
+    if (xAxis) {
+      xAxis.setAttribute("x1", left);
+      xAxis.setAttribute("y1", bottom);
+      xAxis.setAttribute("x2", right);
+      xAxis.setAttribute("y2", bottom);
+      xAxis.setAttribute("stroke", "var(--predictive-axis)");
+      xAxis.setAttribute("stroke-width", "2");
+      this.axisGroup.appendChild(xAxis);
+    }
+    if (yAxis) {
+      yAxis.setAttribute("x1", left);
+      yAxis.setAttribute("y1", bottom);
+      yAxis.setAttribute("x2", left);
+      yAxis.setAttribute("y2", top);
+      yAxis.setAttribute("stroke", "var(--predictive-axis)");
+      yAxis.setAttribute("stroke-width", "2");
+      this.axisGroup.appendChild(yAxis);
+    }
+
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i += 1) {
+      const t = i / ticks;
+      const x = left + (right - left) * t;
+      const y = bottom - (bottom - top) * t;
+      const gridX = this.createSvgElement("line");
+      const gridY = this.createSvgElement("line");
+      if (gridX) {
+        gridX.setAttribute("x1", x);
+        gridX.setAttribute("y1", top);
+        gridX.setAttribute("x2", x);
+        gridX.setAttribute("y2", bottom);
+        gridX.setAttribute("stroke", "var(--predictive-grid)");
+        gridX.setAttribute("stroke-width", "1");
+        this.gridGroup?.appendChild(gridX);
+      }
+      if (gridY) {
+        gridY.setAttribute("x1", left);
+        gridY.setAttribute("y1", y);
+        gridY.setAttribute("x2", right);
+        gridY.setAttribute("y2", y);
+        gridY.setAttribute("stroke", "var(--predictive-grid)");
+        gridY.setAttribute("stroke-width", "1");
+        this.gridGroup?.appendChild(gridY);
+      }
+    }
+
+    const yMaxLabel = this.createSvgElement("text");
+    if (yMaxLabel) {
+      yMaxLabel.setAttribute("x", left - 8);
+      yMaxLabel.setAttribute("y", top + 4);
+      yMaxLabel.setAttribute("text-anchor", "end");
+      yMaxLabel.setAttribute("fill", "var(--predictive-axis-label)");
+      yMaxLabel.setAttribute("font-size", "11");
+      yMaxLabel.textContent = yMax.toFixed(2);
+      this.axisGroup.appendChild(yMaxLabel);
+    }
+
+    const yMinLabel = this.createSvgElement("text");
+    if (yMinLabel) {
+      yMinLabel.setAttribute("x", left - 8);
+      yMinLabel.setAttribute("y", bottom);
+      yMinLabel.setAttribute("text-anchor", "end");
+      yMinLabel.setAttribute("fill", "var(--predictive-axis-label)");
+      yMinLabel.setAttribute("font-size", "11");
+      yMinLabel.textContent = yMin.toFixed(2);
+      this.axisGroup.appendChild(yMinLabel);
+    }
+
+    const xLabel = this.createSvgElement("text");
+    if (xLabel) {
+      xLabel.setAttribute("x", right);
+      xLabel.setAttribute("y", bottom + 26);
+      xLabel.setAttribute("text-anchor", "end");
+      xLabel.setAttribute("fill", "var(--predictive-axis-label)");
+      xLabel.setAttribute("font-size", "11");
+      xLabel.textContent = `Next ${xMax} items`;
+      this.axisGroup.appendChild(xLabel);
+    }
+  }
+
+  update() {
+    const points = Array.isArray(this.plot?.points) ? this.plot.points : [];
+    if (!points.length || !this.linePath || !this.bandPath) {
+      if (this.linePath) this.linePath.setAttribute("d", "");
+      if (this.bandPath) this.bandPath.setAttribute("d", "");
+      if (this.emptyLabel) this.emptyLabel.style.display = "block";
+      return;
+    }
+    if (this.emptyLabel) this.emptyLabel.style.display = "none";
+
+    const baselineTheta = toNumber(this.plot?.baselineTheta, 0);
+    const baselineSE = toNumber(this.plot?.baselineStandardError, 0.4);
+    const allPoints = [
+      {
+        step: 0,
+        expectedTheta: baselineTheta,
+        lowerTheta: baselineTheta - baselineSE,
+        upperTheta: baselineTheta + baselineSE,
+      },
+      ...points,
+    ];
+
+    let yMin = Math.min(...allPoints.map((point) => point.lowerTheta));
+    let yMax = Math.max(...allPoints.map((point) => point.upperTheta));
+    if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
+      yMin = -2;
+      yMax = 2;
+    }
+    if (yMax - yMin < 0.5) {
+      yMax += 0.25;
+      yMin -= 0.25;
+    }
+
+    const left = this.padding;
+    const right = this.width - this.padding;
+    const top = this.padding;
+    const bottom = this.height - this.padding;
+    const xSpan = Math.max(1, points.length);
+    const ySpan = yMax - yMin || 1;
+
+    const scaleX = (step) => left + (step / xSpan) * (right - left);
+    const scaleY = (value) => bottom - ((value - yMin) / ySpan) * (bottom - top);
+
+    const linePath = allPoints
+      .map((point, index) => {
+        const x = scaleX(point.step);
+        const y = scaleY(point.expectedTheta);
+        const command = index === 0 ? "M" : "L";
+        return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(" ");
+
+    const upperPath = allPoints
+      .map((point, index) => {
+        const x = scaleX(point.step);
+        const y = scaleY(point.upperTheta);
+        const command = index === 0 ? "M" : "L";
+        return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(" ");
+
+    const lowerPath = allPoints
+      .slice()
+      .reverse()
+      .map((point, index) => {
+        const x = scaleX(point.step);
+        const y = scaleY(point.lowerTheta);
+        const command = index === 0 ? "L" : "L";
+        return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(" ");
+
+    this.linePath.setAttribute("d", linePath);
+    this.bandPath.setAttribute("d", `${upperPath} ${lowerPath} Z`);
+    this.updateAxes(yMin, yMax, points.length);
+  }
+
+  getLinePathData() {
+    return this.linePath?.getAttribute?.("d") || "";
+  }
+}
+
 function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
   const elements = {
     dropzone: rootDocument.querySelector("#uploadDropzone"),
@@ -577,6 +829,8 @@ function createDashboardRenderer(rootDocument) {
     lastUpdatedLabel: rootDocument.querySelector("#lastUpdated"),
     lastStudiedLabel: rootDocument.querySelector("#lastStudied"),
     timeToMasteryLabel: rootDocument.querySelector("#timeToMastery"),
+    dueCountLabel: rootDocument.querySelector("#dueCount"),
+    nextReviewLabel: rootDocument.querySelector("#nextReviewAt"),
     typeList: rootDocument.querySelector("#typeList"),
     pulseSummary: rootDocument.querySelector("#pulseSummary"),
     masteryList: rootDocument.querySelector("#masteryList"),
@@ -739,6 +993,18 @@ function createDashboardRenderer(rootDocument) {
       const proficientCount = toNumber(summary?.masteryLevels?.["Proficient"], 0);
       const unmasteredCount = Math.max(0, nodeCount - advancedCount - proficientCount);
       elements.timeToMasteryLabel.textContent = formatDurationMinutes(unmasteredCount * 10);
+    }
+
+    if (elements.dueCountLabel) {
+      const dueCount = toNumber(summary?.spacedRepetition?.dueCount, 0);
+      elements.dueCountLabel.textContent = `${dueCount}`;
+    }
+
+    if (elements.nextReviewLabel) {
+      elements.nextReviewLabel.textContent = formatTimestampOr(
+        summary?.spacedRepetition?.nextReviewAt,
+        "No scheduled reviews"
+      );
     }
 
     renderTypeList(summary?.nodeTypes);
@@ -1086,6 +1352,7 @@ function createLearningStateMachine() {
     result: null,
     ability: null,
     masteryLevels: null,
+    predictivePlot: null,
     isComplete: false,
   };
 
@@ -1093,7 +1360,7 @@ function createLearningStateMachine() {
     return state;
   }
 
-  function setUnit(unit, progress, ability, masteryLevels, isComplete = false) {
+  function setUnit(unit, progress, ability, masteryLevels, predictivePlot, isComplete = false) {
     state.currentUnit = unit || null;
     state.nextUnit = null;
     state.progress = progress || state.progress;
@@ -1101,6 +1368,7 @@ function createLearningStateMachine() {
     state.phase = "learning";
     state.ability = ability || state.ability;
     state.masteryLevels = masteryLevels || state.masteryLevels;
+    state.predictivePlot = predictivePlot || state.predictivePlot;
     state.isComplete = Boolean(isComplete);
   }
 
@@ -1109,13 +1377,14 @@ function createLearningStateMachine() {
     state.phase = "assessment";
   }
 
-  function recordResult(result, nextUnit, progress, ability, masteryLevels, isComplete = false) {
+  function recordResult(result, nextUnit, progress, ability, masteryLevels, predictivePlot, isComplete = false) {
     state.result = result || null;
     state.nextUnit = nextUnit || null;
     state.progress = progress || state.progress;
     state.phase = "result";
     state.ability = ability || state.ability;
     state.masteryLevels = masteryLevels || state.masteryLevels;
+    state.predictivePlot = predictivePlot || state.predictivePlot;
     state.isComplete = Boolean(isComplete);
   }
 
@@ -1157,11 +1426,16 @@ function createLearningRenderer(rootDocument, api) {
     visualLab: rootDocument.querySelector("#visualLab"),
     visualFormula: rootDocument.querySelector("#visualLabFormula"),
     visualFormulaCopy: rootDocument.querySelector("#visualLabFormulaCopy"),
+    predictivePlot: rootDocument.querySelector("#predictivePlot"),
+    predictiveAccuracy: rootDocument.querySelector("#predictiveAccuracy"),
+    predictiveTheta: rootDocument.querySelector("#predictiveTheta"),
+    predictiveInsight: rootDocument.querySelector("#predictiveInsight"),
   };
 
   const machine = createLearningStateMachine();
   const emptyPrompt = "Review the concept summary and begin the quick check when ready.";
   let visualGraph = null;
+  let predictiveChart = null;
   let formulaCopyReset = null;
   let formulaCopyLabel = "Copy";
   let sessionRequestId = 0;
@@ -1201,6 +1475,37 @@ function createLearningRenderer(rootDocument, api) {
     }
     if (elements.progressFill) {
       elements.progressFill.style.width = `${percent}%`;
+    }
+  }
+
+  function renderPredictivePlot(plot) {
+    if (!plot) {
+      if (elements.predictiveAccuracy) elements.predictiveAccuracy.textContent = "--";
+      if (elements.predictiveTheta) elements.predictiveTheta.textContent = "--";
+      if (elements.predictiveInsight) {
+        elements.predictiveInsight.textContent = "Start the session to see your projected mastery curve.";
+      }
+      if (predictiveChart) {
+        predictiveChart.setData(null);
+      }
+      return;
+    }
+
+    const accuracy = Math.round(toNumber(plot.probCorrect, 0) * 100);
+    if (elements.predictiveAccuracy) elements.predictiveAccuracy.textContent = `${accuracy}%`;
+    const finalTheta = toNumber(plot.finalTheta, plot.baselineTheta ?? 0);
+    if (elements.predictiveTheta) elements.predictiveTheta.textContent = finalTheta.toFixed(2);
+
+    if (elements.predictiveInsight) {
+      const baseline = toNumber(plot.baselineTheta, 0);
+      const delta = finalTheta - baseline;
+      const direction = delta >= 0 ? "upward" : "downward";
+      const magnitude = Math.abs(delta).toFixed(2);
+      elements.predictiveInsight.textContent = `Forecast shows a ${direction} shift of ${magnitude} theta over the next ${plot.horizon} items.`;
+    }
+
+    if (predictiveChart) {
+      predictiveChart.setData(plot);
     }
   }
 
@@ -1250,6 +1555,8 @@ function createLearningRenderer(rootDocument, api) {
     if (state.isComplete && elements.prompt) {
       elements.prompt.textContent = "Session complete. You have mastered the current knowledge set.";
     }
+
+    renderPredictivePlot(state.predictivePlot);
   }
 
   async function startSession() {
@@ -1263,7 +1570,13 @@ function createLearningRenderer(rootDocument, api) {
     try {
       const payload = await api.startLearning();
       if (requestId !== sessionRequestId) return;
-      machine.setUnit(payload?.currentUnit, payload?.progress, payload?.ability, payload?.masteryLevels);
+      machine.setUnit(
+        payload?.currentUnit,
+        payload?.progress,
+        payload?.ability,
+        payload?.masteryLevels,
+        payload?.predictivePlot
+      );
       render();
     } catch (error) {
       if (requestId !== sessionRequestId) return;
@@ -1302,6 +1615,7 @@ function createLearningRenderer(rootDocument, api) {
         payload?.progress,
         payload?.ability,
         payload?.masteryLevels,
+        payload?.predictivePlot,
         payload?.isComplete
       );
       render();
@@ -1382,6 +1696,13 @@ function createLearningRenderer(rootDocument, api) {
         ],
       });
     }
+
+    if (elements.predictivePlot) {
+      predictiveChart = new PredictivePlot({
+        rootDocument,
+        container: elements.predictivePlot,
+      });
+    }
   }
 
   return {
@@ -1394,23 +1715,70 @@ function createLearningRenderer(rootDocument, api) {
   };
 }
 
-function bindSidebarPageTransitions(rootDocument) {
+function createNavigationManager(rootDocument) {
   const main = rootDocument.querySelector("main");
-  if (!main) return;
   const navItems = Array.from(rootDocument.querySelectorAll(".nav-item"));
-  if (navItems.length === 0) return;
+  const headerPill = rootDocument.querySelector(".main-header .pill");
+  const headerTitle = rootDocument.querySelector(".main-header h1");
+  const headerSub = rootDocument.querySelector(".main-header .subtitle");
 
-  const triggerFadeIn = () => {
+  const viewMetadata = {
+    home: { pill: "Home", title: "Learning Dashboard", sub: "Monitor graph coverage, mastery signals, and recent study activity." },
+    ingest: { pill: "Ingest", title: "Content Ingestion", sub: "Upload and process new lecture slides into your knowledge graph." },
+    lessons: { pill: "Lessons", title: "Study Modules", sub: "Browse and review knowledge units extracted from your lectures." },
+    learning: { pill: "CAT Sessions", title: "Adaptive Learning", sub: "Focus on the next best knowledge unit and reinforce mastery." },
+    analytics: { pill: "Analytics", title: "Performance Insights", sub: "Deep-dive into mastery distribution and knowledge graph density." },
+  };
+
+  function switchView(viewId) {
+    if (!main || !viewMetadata[viewId]) return;
+
+    // Update nav state
+    navItems.forEach((btn) => {
+      if (btn.dataset.view === viewId) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+
+    // Update header
+    const meta = viewMetadata[viewId];
+    if (headerPill) headerPill.textContent = meta.pill;
+    if (headerTitle) headerTitle.textContent = meta.title;
+    if (headerSub) headerSub.textContent = meta.sub;
+
+    // Trigger transition
     main.classList.remove("page-fade-in");
     void main.offsetWidth;
     main.classList.add("page-fade-in");
-  };
 
-  navItems.forEach((item) => {
-    item.addEventListener("click", () => {
-      triggerFadeIn();
+    // Set active view
+    main.dataset.activeView = viewId;
+  }
+
+  function initialize() {
+    navItems.forEach((item) => {
+      const viewId = item.dataset.view;
+      if (viewId) {
+        item.addEventListener("click", () => switchView(viewId));
+      }
     });
-  });
+
+    // Handle special buttons that switch views
+    const openUpload = rootDocument.getElementById("openUpload");
+    if (openUpload) {
+      openUpload.addEventListener("click", () => switchView("ingest"));
+    }
+
+    // Default view
+    switchView("home");
+  }
+
+  return {
+    switchView,
+    initialize,
+  };
 }
 
 function setCurrentSessionDate(rootDocument) {
@@ -1434,7 +1802,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   lessons.initialize();
   const learning = createLearningRenderer(document, window.catApi);
   learning.initialize();
-  bindSidebarPageTransitions(document);
+  const navigation = createNavigationManager(document);
+  navigation.initialize();
   setCurrentSessionDate(document);
 }
 
@@ -1445,7 +1814,9 @@ if (typeof module !== "undefined" && module.exports) {
     createLessonsRenderer,
     createLearningRenderer,
     createLearningStateMachine,
+    createNavigationManager,
     formatTimestamp,
     InteractiveGraph,
+    PredictivePlot,
   };
 }

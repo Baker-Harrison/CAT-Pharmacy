@@ -9,7 +9,7 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -230,13 +230,23 @@ class GraphSummary:
     edge_count: int
     node_types: Dict[str, int]
     mastery_levels: Dict[str, int]
+    spaced_repetition: Dict[str, Optional[str]]
     source: str
     last_updated: Optional[str]
     recent_topics: List[Dict[str, str]]
 
     @classmethod
     def empty(cls) -> "GraphSummary":
-        return cls(0, 0, {}, {level: 0 for level in DEFAULT_MASTERY_LEVELS}, "No graph data found", None, [])
+        return cls(
+            0,
+            0,
+            {},
+            {level: 0 for level in DEFAULT_MASTERY_LEVELS},
+            {"dueCount": 0, "nextReviewAt": None},
+            "No graph data found",
+            None,
+            [],
+        )
 
     @classmethod
     def from_payload(
@@ -252,7 +262,17 @@ class GraphSummary:
         edges = _extract_items(graph_payload.get("Edges") or graph_payload.get("edges"))
         node_types = _build_node_type_counts(nodes)
         mastery_levels, recent_topics = _build_mastery_snapshot(student_state, nodes, recent_limit)
-        return cls(len(nodes), len(edges), node_types, mastery_levels, source, last_updated, recent_topics)
+        spaced_repetition = _build_spaced_repetition_snapshot(student_state)
+        return cls(
+            len(nodes),
+            len(edges),
+            node_types,
+            mastery_levels,
+            spaced_repetition,
+            source,
+            last_updated,
+            recent_topics,
+        )
 
     def to_payload(self) -> dict:
         return {
@@ -260,6 +280,7 @@ class GraphSummary:
             "edgeCount": self.edge_count,
             "nodeTypes": self.node_types,
             "masteryLevels": self.mastery_levels,
+            "spacedRepetition": self.spaced_repetition,
             "source": self.source,
             "lastUpdated": self.last_updated,
             "recentTopics": self.recent_topics,
@@ -331,6 +352,34 @@ def _build_mastery_snapshot(
     return mastery_levels, recent_topics
 
 
+def _build_spaced_repetition_snapshot(student_state: Optional[dict]) -> Dict[str, Optional[str]]:
+    if not isinstance(student_state, dict):
+        return {"dueCount": 0, "nextReviewAt": None}
+
+    mastery_data = student_state.get("knowledgeMasteries") or student_state.get("KnowledgeMasteries")
+    mastery_items = _extract_items(mastery_data)
+
+    due_count = 0
+    next_review: Optional[datetime] = None
+    now = datetime.utcnow()
+
+    for mastery in mastery_items:
+        next_review_value = _get_value(mastery, "nextReviewAt", "NextReviewAt")
+        review_time = _parse_timestamp(next_review_value)
+        if review_time is None:
+            continue
+        if review_time <= now:
+            due_count += 1
+            continue
+        if next_review is None or review_time < next_review:
+            next_review = review_time
+
+    return {
+        "dueCount": due_count,
+        "nextReviewAt": _format_timestamp(next_review) if next_review else None,
+    }
+
+
 def _extract_items(raw: Any) -> List[dict]:
     if raw is None:
         return []
@@ -387,7 +436,9 @@ def _parse_timestamp(value: Any) -> Optional[datetime]:
             parsed = datetime.fromisoformat(cleaned)
             if parsed.year <= 1:
                 return None
-            return parsed
+            if parsed.tzinfo is None:
+                return parsed
+            return parsed.astimezone(timezone.utc).replace(tzinfo=None)
         except ValueError:
             return None
     return None

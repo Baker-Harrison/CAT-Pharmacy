@@ -46,6 +46,8 @@ function createMockDocument() {
   register("sidebarEdgeCount");
   register("graphSource");
   register("lastUpdated");
+  register("dueCount");
+  register("nextReviewAt");
   register("typeList");
   register("pulseSummary");
   register("masteryList");
@@ -67,6 +69,10 @@ dashboard.renderSummary({
   masteryLevels: { Advanced: 12, Proficient: 38, Developing: 44, Novice: 24, Unknown: 10 },
   source: "mock-graph.json",
   lastUpdated: "2025-01-12T10:30:00Z",
+  spacedRepetition: {
+    dueCount: 6,
+    nextReviewAt: "2025-01-12T14:00:00Z",
+  },
   recentTopics: [
     { title: "Cardiology Foundations", level: "Proficient", lastAssessed: "2025-01-11T09:00:00Z" },
     { title: "Renal Pharmacokinetics", level: "Developing", lastAssessed: "2025-01-10T16:22:00Z" },
@@ -76,6 +82,7 @@ dashboard.renderSummary({
 assert.equal(mockDocument.querySelector("#nodeCount").textContent, "128");
 assert.equal(mockDocument.querySelector("#edgeCount").textContent, "412");
 assert.equal(mockDocument.querySelector("#graphSource").textContent, "mock-graph.json");
+assert.equal(mockDocument.querySelector("#dueCount").textContent, "6");
 
 const masteryList = mockDocument.querySelector("#masteryList");
 assert.equal(masteryList.children.length, 5);

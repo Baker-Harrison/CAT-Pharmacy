@@ -24,11 +24,11 @@
         </div>
 
         <nav class="nav">
-          <button class="nav-item active" title="View dashboard and mastery stats">Home</button>
-          <button class="nav-item" title="Upload and process new lecture slides">Ingest</button>
-          <button class="nav-item" title="Browse and review study modules">Lessons</button>
-          <button class="nav-item" title="Start an adaptive testing session">CAT Sessions</button>
-          <button class="nav-item" title="View detailed learning progress">Analytics</button>
+          <button class="nav-item active" data-view="home" title="View dashboard and mastery stats">Home</button>
+          <button class="nav-item" data-view="ingest" title="Upload and process new lecture slides">Ingest</button>
+          <button class="nav-item" data-view="lessons" title="Browse and review study modules">Lessons</button>
+          <button class="nav-item" data-view="learning" title="Start an adaptive testing session">CAT Sessions</button>
+          <button class="nav-item" data-view="analytics" title="View detailed learning progress">Analytics</button>
         </nav>
 
         <div class="sidebar-card">
@@ -103,72 +103,82 @@
           </div>
         </section>
 
-        <section class="summary-grid">
-          <div class="card highlight">
-            <div class="card-title">Graph Totals</div>
-            <div class="metric-row">
-              <div>
-                <div class="metric-value" id="nodeCount">0</div>
-                <div class="metric-label">Nodes</div>
+        <section class="dashboard-view" id="homeView">
+          <section class="summary-grid">
+            <div class="card highlight">
+              <div class="card-title">Graph Totals</div>
+              <div class="metric-row">
+                <div>
+                  <div class="metric-value" id="nodeCount">0</div>
+                  <div class="metric-label">Nodes</div>
+                </div>
+                <div>
+                  <div class="metric-value" id="edgeCount">0</div>
+                  <div class="metric-label">Edges</div>
+                </div>
               </div>
-              <div>
-                <div class="metric-value" id="edgeCount">0</div>
-                <div class="metric-label">Edges</div>
+              <div class="metric-note">Live snapshot from the Python data store.</div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Mastery Snapshot</div>
+              <div class="mastery-list" id="masteryList"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Spaced Repetition</div>
+              <div class="metric-value" id="dueCount">0</div>
+              <div class="metric-label">Reviews due now</div>
+              <div class="source-sub">Next review</div>
+              <div class="source-date" id="nextReviewAt">No scheduled reviews</div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Est. Time to Mastery</div>
+              <div class="metric-value" id="timeToMastery">0 minutes</div>
+              <div class="metric-label">Baseline at 10 minutes per node.</div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Learning Pulse</div>
+              <div class="pulse-title" id="pulseSummary">Waiting for content ingestion.</div>
+              <div class="pulse-sub">Adaptive sessions will rely on updated node coverage.</div>
+              <div class="pulse-bar">
+                <span></span>
               </div>
             </div>
-            <div class="metric-note">Live snapshot from the Python data store.</div>
-          </div>
 
-          <div class="card">
-            <div class="card-title">Mastery Snapshot</div>
-            <div class="mastery-list" id="masteryList"></div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Est. Time to Mastery</div>
-            <div class="metric-value" id="timeToMastery">0 minutes</div>
-            <div class="metric-label">Baseline at 10 minutes per node.</div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Learning Pulse</div>
-            <div class="pulse-title" id="pulseSummary">Waiting for content ingestion.</div>
-            <div class="pulse-sub">Adaptive sessions will rely on updated node coverage.</div>
-            <div class="pulse-bar">
-              <span></span>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Knowledge Graph Source</div>
-            <div class="source-label" id="graphSource">Awaiting sync</div>
-            <div class="source-sub">Last updated</div>
-            <div class="source-date" id="lastUpdated">Not available</div>
-            <div class="source-sub">Last studied</div>
-            <div class="source-date" id="lastStudied">Never</div>
-          </div>
-        </section>
-
-        <section class="details-grid">
-          <div class="card">
-            <div class="card-title">Recently Studied Topics</div>
-            <div class="recent-list" id="recentTopics"></div>
-          </div>
-
-          <div class="stack">
             <div class="card">
-              <div class="card-title">Node Types</div>
-              <div class="type-list" id="typeList"></div>
+              <div class="card-title">Knowledge Graph Source</div>
+              <div class="source-label" id="graphSource">Awaiting sync</div>
+              <div class="source-sub">Last updated</div>
+              <div class="source-date" id="lastUpdated">Not available</div>
+              <div class="source-sub">Last studied</div>
+              <div class="source-date" id="lastStudied">Never</div>
             </div>
+          </section>
+
+          <section class="details-grid">
             <div class="card">
-              <div class="card-title">Session Launch Checklist</div>
-              <ul class="checklist">
-                <li>Confirm ingestion pipeline is synced</li>
-                <li>Review objectives for the next cohort</li>
-                <li>Validate item bank coverage by topic</li>
-              </ul>
+              <div class="card-title">Recently Studied Topics</div>
+              <div class="recent-list" id="recentTopics"></div>
             </div>
-          </div>
+
+            <div class="stack">
+              <div class="card">
+                <div class="card-title">Node Types</div>
+                <div class="type-list" id="typeList"></div>
+              </div>
+              <div class="card">
+                <div class="card-title">Session Launch Checklist</div>
+                <ul class="checklist">
+                  <li>Confirm ingestion pipeline is synced</li>
+                  <li>Review objectives for the next cohort</li>
+                  <li>Validate item bank coverage by topic</li>
+                </ul>
+              </div>
+            </div>
+          </section>
         </section>
 
         <section class="lessons-view" id="lessonsView">
@@ -288,6 +298,69 @@
                       Increase dose and watch the curve scale while half-life remains tied to k.
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card predictive-plot">
+              <div class="predictive-plot-header">
+                <div>
+                  <div class="card-title">Predictive Plotting</div>
+                  <div class="predictive-plot-title">Active learning forecast</div>
+                  <div class="predictive-plot-subtitle">
+                    See how your ability is expected to evolve across the next adaptive checks.
+                  </div>
+                </div>
+                <div class="predictive-plot-metrics">
+                  <div class="predictive-metric">
+                    <div class="predictive-metric-label">Expected accuracy</div>
+                    <div class="predictive-metric-value" id="predictiveAccuracy">--</div>
+                  </div>
+                  <div class="predictive-metric">
+                    <div class="predictive-metric-label">Projected theta</div>
+                    <div class="predictive-metric-value" id="predictiveTheta">--</div>
+                  </div>
+                </div>
+              </div>
+              <div class="predictive-plot-body">
+                <div class="predictive-plot-canvas" id="predictivePlot"></div>
+                <div class="predictive-plot-insight" id="predictiveInsight">
+                  Start the session to see your projected mastery curve.
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="analytics-view" id="analyticsView">
+          <div class="card analytics-hero">
+            <div class="card-title">Learning Analytics</div>
+            <h1>Performance Insights</h1>
+            <p class="subtitle">Deep-dive into mastery distribution and knowledge graph density.</p>
+          </div>
+
+          <div class="analytics-grid">
+            <div class="card">
+              <div class="card-title">Bloom's Taxonomy Distribution</div>
+              <div class="chart-placeholder">
+                <div class="bar-chart">
+                  <div class="bar" style="--height: 40%"><span>Remember</span></div>
+                  <div class="bar" style="--height: 60%"><span>Understand</span></div>
+                  <div class="bar" style="--height: 30%"><span>Apply</span></div>
+                  <div class="bar" style="--height: 15%"><span>Analyze</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Difficulty vs. Mastery</div>
+              <div class="chart-placeholder">
+                <div class="scatter-plot">
+                  <!-- CSS-based placeholder for now -->
+                  <div class="dot" style="top: 20%; left: 30%"></div>
+                  <div class="dot" style="top: 50%; left: 60%"></div>
+                  <div class="dot" style="top: 80%; left: 20%"></div>
+                  <div class="dot" style="top: 40%; left: 80%"></div>
                 </div>
               </div>
             </div>

@@ -11,7 +11,7 @@ import math
 import os
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
@@ -481,6 +481,8 @@ def _initialize_session(units: List[dict]) -> dict:
             "attempts": 0,
             "correct": 0,
             "lastAssessed": None,
+            "intervalDays": None,
+            "nextReviewAt": None,
         }
         for unit_id in unit_ids
     }
@@ -527,18 +529,65 @@ def _normalize_level(score: float, attempts: int) -> str:
     return "Unknown"
 
 
+_SPACED_BASE_INTERVALS = {
+    "Unknown": 0.25,
+    "Novice": 1.0,
+    "Developing": 3.0,
+    "Proficient": 7.0,
+    "Advanced": 14.0,
+}
+
+_MAX_INTERVAL_DAYS = 60.0
+
+
+def _parse_assessed_timestamp(value: Optional[str]) -> datetime:
+    if not value:
+        return datetime.utcnow()
+    cleaned = value.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(cleaned)
+        if parsed.tzinfo is None:
+            return parsed
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    except ValueError:
+        return datetime.utcnow()
+
+
+def _schedule_next_review(entry: dict, level: str, is_correct: bool, assessed_at: str) -> tuple[float, str]:
+    base = _SPACED_BASE_INTERVALS.get(level, 1.0)
+    previous_interval = entry.get("intervalDays")
+    previous_value = None
+    if isinstance(previous_interval, (int, float)):
+        previous_value = float(previous_interval)
+
+    if not is_correct:
+        interval = min(base, 0.5)
+    elif previous_value is None:
+        interval = base
+    else:
+        interval = max(base, previous_value * 1.8)
+
+    interval = _clamp(interval, 0.25, _MAX_INTERVAL_DAYS)
+    assessed_dt = _parse_assessed_timestamp(assessed_at)
+    next_review = assessed_dt + timedelta(days=interval)
+    return interval, next_review.isoformat() + "Z"
+
+
 def _update_mastery_entry(entry: dict, is_correct: bool, assessed_at: str) -> dict:
     attempts = int(entry.get("attempts") or 0) + 1
     correct = int(entry.get("correct") or 0) + (1 if is_correct else 0)
     score = float(entry.get("score") or 0.0)
     score = max(0.0, min(1.0, score + (0.2 if is_correct else -0.12)))
     level = _normalize_level(score, attempts)
+    interval_days, next_review_at = _schedule_next_review(entry, level, is_correct, assessed_at)
     return {
         "score": score,
         "level": level,
         "attempts": attempts,
         "correct": correct,
         "lastAssessed": assessed_at,
+        "intervalDays": interval_days,
+        "nextReviewAt": next_review_at,
     }
 
 
@@ -569,6 +618,7 @@ def _select_next_unit(
         return None
 
     candidates: List[dict] = []
+    now = datetime.utcnow()
     for unit_id in remaining_unit_ids:
         unit = units_by_id.get(unit_id)
         if unit is None:
@@ -579,19 +629,52 @@ def _select_next_unit(
         difficulty = float(unit_difficulties.get(unit_id, 0.0))
         info = ItemParameter(difficulty=difficulty).fisher_information(theta)
         priority = (1.0 - score) * (1.0 + info)
+        next_review_at = entry.get("nextReviewAt")
+        due = False
+        if isinstance(next_review_at, str) and next_review_at.strip():
+            review_dt = _parse_assessed_timestamp(next_review_at)
+            if review_dt <= now:
+                due = True
+                priority *= 1.8
+            else:
+                priority *= 0.6
         candidates.append(
             {
                 "unit": unit,
                 "priority": priority,
                 "lastAssessed": last_assessed or "",
+                "due": 1 if due else 0,
             }
         )
 
     if not candidates:
         return None
 
-    candidates.sort(key=lambda item: (item["priority"], item["lastAssessed"]))
+    candidates.sort(key=lambda item: (item["due"], item["priority"], item["lastAssessed"]))
     return candidates[-1]["unit"]
+
+
+def _inject_due_reviews(
+    units_by_id: Dict[str, dict],
+    remaining_unit_ids: List[str],
+    mastery: Dict[str, dict],
+) -> List[str]:
+    now = datetime.utcnow()
+    remaining = list(remaining_unit_ids or [])
+    remaining_set = set(remaining)
+    for unit_id, entry in mastery.items():
+        if unit_id in remaining_set:
+            continue
+        if unit_id not in units_by_id:
+            continue
+        next_review_at = entry.get("nextReviewAt")
+        if not isinstance(next_review_at, str) or not next_review_at.strip():
+            continue
+        review_dt = _parse_assessed_timestamp(next_review_at)
+        if review_dt <= now:
+            remaining.append(unit_id)
+            remaining_set.add(unit_id)
+    return remaining
 
 
 def _build_mastery_levels(mastery: Dict[str, dict]) -> Dict[str, int]:
@@ -602,6 +685,80 @@ def _build_mastery_levels(mastery: Dict[str, dict]) -> Dict[str, int]:
             level = "Unknown"
         levels[level] = levels.get(level, 0) + 1
     return levels
+
+
+def _clamp(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+def _mean(values: Iterable[float], fallback: float = 0.0) -> float:
+    total = 0.0
+    count = 0
+    for value in values:
+        total += value
+        count += 1
+    if count == 0:
+        return fallback
+    return total / count
+
+
+def _predict_correct_probability(mastery: Dict[str, dict]) -> float:
+    scores: List[float] = []
+    for entry in mastery.values():
+        score = entry.get("score")
+        if isinstance(score, (int, float)):
+            scores.append(float(score))
+    if not scores:
+        return 0.55
+    average = _mean(scores, fallback=0.55)
+    return _clamp(average, 0.15, 0.9)
+
+
+def _build_predictive_plot(
+    ability: Dict[str, float],
+    mastery: Dict[str, dict],
+    unit_difficulties: Dict[str, float],
+    horizon: int = 6,
+) -> dict:
+    baseline_theta = float(ability.get("theta") or -1.5)
+    baseline_se = float(ability.get("standardError") or 1.0)
+    difficulty_values: List[float] = []
+    for value in unit_difficulties.values():
+        if isinstance(value, (int, float)):
+            difficulty_values.append(float(value))
+    average_difficulty = _mean(difficulty_values, fallback=0.0)
+    probability_correct = _predict_correct_probability(mastery)
+
+    points: List[dict] = []
+    theta = baseline_theta
+    current_se = baseline_se
+    for step in range(1, max(horizon, 1) + 1):
+        correct = _update_ability_estimate(theta, ItemParameter(difficulty=average_difficulty), True)
+        incorrect = _update_ability_estimate(theta, ItemParameter(difficulty=average_difficulty), False)
+        expected_theta = probability_correct * correct.theta + (1.0 - probability_correct) * incorrect.theta
+        expected_se = probability_correct * correct.standard_error + (1.0 - probability_correct) * incorrect.standard_error
+        points.append(
+            {
+                "step": step,
+                "expectedTheta": round(expected_theta, 3),
+                "expectedStandardError": round(expected_se, 3),
+                "lowerTheta": round(expected_theta - expected_se, 3),
+                "upperTheta": round(expected_theta + expected_se, 3),
+            }
+        )
+        theta = expected_theta
+        current_se = expected_se
+
+    return {
+        "horizon": max(horizon, 1),
+        "baselineTheta": round(baseline_theta, 3),
+        "baselineStandardError": round(baseline_se, 3),
+        "finalTheta": round(theta, 3),
+        "finalStandardError": round(current_se, 3),
+        "probCorrect": round(probability_correct, 3),
+        "averageDifficulty": round(average_difficulty, 3),
+        "points": points,
+    }
 
 
 def _save_student_state(
@@ -624,6 +781,8 @@ def _save_student_state(
                 "score": entry.get("score"),
                 "attempts": entry.get("attempts"),
                 "correct": entry.get("correct"),
+                "intervalDays": entry.get("intervalDays"),
+                "nextReviewAt": entry.get("nextReviewAt"),
             }
         )
 
@@ -664,6 +823,8 @@ def process_response(payload: dict, data_dir: Optional[Path]) -> dict:
     if not remaining_unit_ids:
         remaining_unit_ids = [unit["id"] for unit in units]
 
+    remaining_unit_ids = _inject_due_reviews(units_by_id, remaining_unit_ids, mastery)
+
     current_unit_id = payload.get("unitId") or state.get("activeUnitId")
     current_unit = units_by_id.get(str(current_unit_id)) if current_unit_id else None
 
@@ -688,6 +849,7 @@ def process_response(payload: dict, data_dir: Optional[Path]) -> dict:
             },
             "ability": ability,
             "masteryLevels": _build_mastery_levels(mastery),
+            "predictivePlot": _build_predictive_plot(ability, mastery, unit_difficulties),
             "isComplete": False if current_unit else True,
         }
 
@@ -784,6 +946,7 @@ def process_response(payload: dict, data_dir: Optional[Path]) -> dict:
         },
         "ability": ability,
         "masteryLevels": _build_mastery_levels(mastery),
+        "predictivePlot": _build_predictive_plot(ability, mastery, unit_difficulties),
         "isComplete": is_complete,
     }
 

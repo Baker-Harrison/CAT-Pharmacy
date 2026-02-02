@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { InteractiveGraph } = require("../../src/renderer");
+const { InteractiveGraph, PredictivePlot } = require("../../src/renderer");
 
 function createMockElement(tagName = "div") {
   const element = {
@@ -67,4 +67,34 @@ test("InteractiveGraph recalculates SVG path when parameters change", () => {
 
   assert.ok(initialPath.length > 0);
   assert.notEqual(updatedPath, initialPath);
+});
+
+test("PredictivePlot renders line path when data is provided", () => {
+  const mockDocument = createMockDocument();
+  const container = createMockElement("div");
+
+  const plot = new PredictivePlot({
+    rootDocument: mockDocument,
+    container,
+    width: 360,
+    height: 200,
+  });
+
+  plot.setData({
+    horizon: 3,
+    baselineTheta: -1.0,
+    baselineStandardError: 0.4,
+    finalTheta: -0.6,
+    points: [
+      { step: 1, expectedTheta: -0.9, lowerTheta: -1.3, upperTheta: -0.5 },
+      { step: 2, expectedTheta: -0.75, lowerTheta: -1.1, upperTheta: -0.4 },
+      { step: 3, expectedTheta: -0.6, lowerTheta: -1.0, upperTheta: -0.2 },
+    ],
+  });
+
+  const linePath = plot.getLinePathData();
+  assert.ok(linePath.length > 0);
+
+  plot.setData(null);
+  assert.equal(plot.getLinePathData(), "");
 });
