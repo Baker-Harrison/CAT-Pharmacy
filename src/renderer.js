@@ -1320,6 +1320,17 @@ function bindSidebarPageTransitions(rootDocument) {
   });
 }
 
+function setCurrentSessionDate(rootDocument) {
+  const label = rootDocument.getElementById("currentSessionDate");
+  if (!label) return;
+  const now = new Date();
+  const formatted = now.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+  label.textContent = `Current Session: ${formatted}`;
+}
+
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   const dashboard = createDashboardRenderer(document);
   const upload = createUploadRenderer(document, window.catApi, (summary) => {
@@ -1332,6 +1343,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   const learning = createLearningRenderer(document, window.catApi);
   learning.initialize();
   bindSidebarPageTransitions(document);
+  setCurrentSessionDate(document);
 }
 
 if (typeof module !== "undefined" && module.exports) {
