@@ -643,6 +643,252 @@ function createLessonsRenderer(rootDocument, api) {
   };
 }
 
+function createLearningStateMachine() {
+  const state = {
+    phase: "learning",
+    currentUnit: null,
+    nextUnit: null,
+    progress: { completed: 0, total: 0, percent: 0 },
+    result: null,
+    ability: null,
+    masteryLevels: null,
+    isComplete: false,
+  };
+
+  function getState() {
+    return state;
+  }
+
+  function setUnit(unit, progress, ability, masteryLevels, isComplete = false) {
+    state.currentUnit = unit || null;
+    state.nextUnit = null;
+    state.progress = progress || state.progress;
+    state.result = null;
+    state.phase = "learning";
+    state.ability = ability || state.ability;
+    state.masteryLevels = masteryLevels || state.masteryLevels;
+    state.isComplete = Boolean(isComplete);
+  }
+
+  function beginAssessment() {
+    if (!state.currentUnit || state.isComplete) return;
+    state.phase = "assessment";
+  }
+
+  function recordResult(result, nextUnit, progress, ability, masteryLevels, isComplete = false) {
+    state.result = result || null;
+    state.nextUnit = nextUnit || null;
+    state.progress = progress || state.progress;
+    state.phase = "result";
+    state.ability = ability || state.ability;
+    state.masteryLevels = masteryLevels || state.masteryLevels;
+    state.isComplete = Boolean(isComplete);
+  }
+
+  function advance() {
+    if (state.isComplete || !state.nextUnit) return;
+    state.currentUnit = state.nextUnit;
+    state.nextUnit = null;
+    state.result = null;
+    state.phase = "learning";
+  }
+
+  return {
+    getState,
+    setUnit,
+    beginAssessment,
+    recordResult,
+    advance,
+  };
+}
+
+function createLearningRenderer(rootDocument, api) {
+  const elements = {
+    shell: rootDocument.querySelector("#learningShell"),
+    title: rootDocument.querySelector("#learningTitle"),
+    subtitle: rootDocument.querySelector("#learningSubtitle"),
+    progressText: rootDocument.querySelector("#learningProgressText"),
+    progressFill: rootDocument.querySelector("#learningProgressFill"),
+    phase: rootDocument.querySelector("#learningPhase"),
+    phaseChip: rootDocument.querySelector("#learningPhaseChip"),
+    conceptTitle: rootDocument.querySelector("#learningConceptTitle"),
+    conceptSummary: rootDocument.querySelector("#learningConceptSummary"),
+    keyPoints: rootDocument.querySelector("#learningKeyPoints"),
+    prompt: rootDocument.querySelector("#learningPrompt"),
+    answer: rootDocument.querySelector("#learningAnswer"),
+    feedback: rootDocument.querySelector("#learningFeedback"),
+    startAssessment: rootDocument.querySelector("#learningStartAssessment"),
+    submitAnswer: rootDocument.querySelector("#learningSubmitAnswer"),
+    continueButton: rootDocument.querySelector("#learningContinue"),
+  };
+
+  const machine = createLearningStateMachine();
+  const emptyPrompt = "Review the concept summary and begin the quick check when ready.";
+
+  function setFeedback(message, tone = "neutral") {
+    if (!elements.feedback) return;
+    elements.feedback.textContent = message || "";
+    elements.feedback.dataset.tone = tone;
+  }
+
+  function renderKeyPoints(points) {
+    if (!elements.keyPoints) return;
+    elements.keyPoints.innerHTML = "";
+    const list = Array.isArray(points) ? points : [];
+    if (list.length === 0) {
+      const empty = rootDocument.createElement("li");
+      empty.textContent = "No key points available for this concept yet.";
+      elements.keyPoints.appendChild(empty);
+      return;
+    }
+    list.forEach((point) => {
+      const item = rootDocument.createElement("li");
+      item.textContent = point;
+      elements.keyPoints.appendChild(item);
+    });
+  }
+
+  function renderProgress(progress) {
+    const completed = toNumber(progress?.completed, 0);
+    const total = Math.max(toNumber(progress?.total, 0), 0);
+    const percent = Math.max(0, Math.min(100, toNumber(progress?.percent, 0)));
+    if (elements.progressText) {
+      elements.progressText.textContent = `${completed} of ${total} complete`;
+    }
+    if (elements.progressFill) {
+      elements.progressFill.style.width = `${percent}%`;
+    }
+  }
+
+  function buildPrompt(unit) {
+    if (!unit) return emptyPrompt;
+    const topic = unit.topic || "this concept";
+    return `In your own words, explain ${topic} and include the key points.`;
+  }
+
+  function render() {
+    const state = machine.getState();
+    const phaseLabel = state.phase.charAt(0).toUpperCase() + state.phase.slice(1);
+    if (elements.shell) {
+      elements.shell.dataset.phase = state.phase;
+    }
+    if (elements.phase) elements.phase.textContent = phaseLabel;
+    if (elements.phaseChip) elements.phaseChip.textContent = phaseLabel;
+
+    if (elements.conceptTitle) {
+      elements.conceptTitle.textContent = state.currentUnit?.topic || "Awaiting session";
+    }
+    if (elements.conceptSummary) {
+      elements.conceptSummary.textContent =
+        state.currentUnit?.summary || "Start a session to load the next adaptive concept.";
+    }
+    renderKeyPoints(state.currentUnit?.keyPoints);
+    renderProgress(state.progress);
+
+    if (elements.prompt) {
+      elements.prompt.textContent = state.phase === "assessment" ? buildPrompt(state.currentUnit) : emptyPrompt;
+    }
+
+    if (elements.answer) {
+      elements.answer.disabled = state.phase !== "assessment";
+      if (state.phase !== "assessment") {
+        elements.answer.value = "";
+      }
+    }
+
+    if (state.phase === "result" && state.result) {
+      const tone = state.result.isCorrect ? "success" : "error";
+      setFeedback(state.result.feedback || (state.result.isCorrect ? "Correct response." : "Incorrect response."), tone);
+    } else {
+      setFeedback("", "neutral");
+    }
+
+    if (state.isComplete && elements.prompt) {
+      elements.prompt.textContent = "Session complete. You have mastered the current knowledge set.";
+    }
+  }
+
+  async function startSession() {
+    if (!api?.startLearning) {
+      setFeedback("Learning service not available.", "error");
+      return;
+    }
+    try {
+      const payload = await api.startLearning();
+      machine.setUnit(payload?.currentUnit, payload?.progress, payload?.ability, payload?.masteryLevels);
+      render();
+    } catch (error) {
+      setFeedback(error?.message || "Failed to start learning session.", "error");
+    }
+  }
+
+  async function submitAnswer() {
+    const state = machine.getState();
+    if (!api?.processLearningResponse) {
+      setFeedback("Learning service not available.", "error");
+      return;
+    }
+    if (!state.currentUnit) {
+      setFeedback("No active concept to assess.", "error");
+      return;
+    }
+
+    try {
+      const payload = await api.processLearningResponse({
+        action: "response",
+        unitId: state.currentUnit.id,
+        answer: elements.answer?.value || "",
+      });
+      machine.recordResult(
+        payload?.result,
+        payload?.nextUnit,
+        payload?.progress,
+        payload?.ability,
+        payload?.masteryLevels,
+        payload?.isComplete
+      );
+      render();
+    } catch (error) {
+      setFeedback(error?.message || "Failed to process response.", "error");
+    }
+  }
+
+  function bindEvents() {
+    if (elements.startAssessment) {
+      elements.startAssessment.addEventListener("click", () => {
+        machine.beginAssessment();
+        render();
+      });
+    }
+    if (elements.submitAnswer) {
+      elements.submitAnswer.addEventListener("click", () => {
+        submitAnswer();
+      });
+    }
+    if (elements.continueButton) {
+      elements.continueButton.addEventListener("click", () => {
+        machine.advance();
+        render();
+      });
+    }
+  }
+
+  function initialize() {
+    bindEvents();
+    render();
+    startSession();
+  }
+
+  return {
+    elements,
+    initialize,
+    render,
+    startSession,
+    submitAnswer,
+    stateMachine: machine,
+  };
+}
+
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   const dashboard = createDashboardRenderer(document);
   const upload = createUploadRenderer(document, window.catApi, (summary) => {
@@ -652,6 +898,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   upload.initialize();
   const lessons = createLessonsRenderer(document, window.catApi);
   lessons.initialize();
+  const learning = createLearningRenderer(document, window.catApi);
+  learning.initialize();
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -659,6 +907,8 @@ if (typeof module !== "undefined" && module.exports) {
     createDashboardRenderer,
     createUploadRenderer,
     createLessonsRenderer,
+    createLearningRenderer,
+    createLearningStateMachine,
     formatTimestamp,
   };
 }
