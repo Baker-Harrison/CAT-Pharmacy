@@ -57,10 +57,42 @@
             </p>
           </div>
           <div class="header-actions">
-            <button class="ghost">Open ingestion pipeline</button>
+            <button class="ghost" id="openUpload">Open ingestion pipeline</button>
             <button class="secondary">Review objectives</button>
           </div>
         </header>
+
+        <section class="upload-grid" id="uploadView">
+          <div class="card upload-card">
+            <div class="card-title">Upload PPTX</div>
+            <div class="upload-dropzone" id="uploadDropzone" data-state="idle">
+              <input type="file" id="uploadInput" accept=".pptx" />
+              <div class="upload-icon">UP</div>
+              <div class="upload-title">Drag & drop a PowerPoint deck</div>
+              <div class="upload-sub">or click to browse your files</div>
+              <div class="upload-meta" id="uploadFileName">No file selected</div>
+              <div class="upload-status" id="uploadStatus" data-tone="neutral">Ready to ingest</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Ingestion Checklist</div>
+            <div class="action-grid">
+              <div class="action-item">
+                <div class="action-title">Source validation</div>
+                <div class="action-sub">Confirm the deck is final and contains learning objectives.</div>
+              </div>
+              <div class="action-item">
+                <div class="action-title">Knowledge unit extraction</div>
+                <div class="action-sub">Parser will map slides into knowledge units and key points.</div>
+              </div>
+              <div class="action-item">
+                <div class="action-title">Graph refresh</div>
+                <div class="action-sub">Nodes and edges update automatically after ingestion.</div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <section class="summary-grid">
           <div class="card highlight">

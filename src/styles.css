@@ -481,6 +481,89 @@ h1 {
   gap: 16px;
 }
 
+.upload-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 18px;
+}
+
+.upload-card {
+  padding: 22px 24px;
+}
+
+.upload-dropzone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 36px 24px;
+  border-radius: 18px;
+  border: 1px dashed rgba(88, 225, 193, 0.4);
+  background: rgba(11, 18, 20, 0.6);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.upload-dropzone[data-state="drag"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(88, 225, 193, 0.3), 0 16px 32px rgba(7, 9, 8, 0.35);
+  transform: translateY(-2px);
+}
+
+.upload-dropzone[data-state="busy"] {
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 1px rgba(34, 197, 154, 0.3);
+}
+
+.upload-dropzone[data-state="busy"]::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(88, 225, 193, 0.35);
+  animation: pulse-border 1.6s ease-in-out infinite;
+}
+
+#uploadInput {
+  display: none;
+}
+
+.upload-icon {
+  font-size: 32px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.upload-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.upload-sub {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.upload-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.upload-status {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.upload-status[data-tone="success"] {
+  color: var(--accent);
+}
+
+.upload-status[data-tone="error"] {
+  color: #ff9b8f;
+}
+
 .action-item {
   padding: 14px 16px;
   border-radius: 14px;
@@ -537,6 +620,18 @@ h1 {
   }
 }
 
+@keyframes pulse-border {
+  0% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
 @media (max-width: 1200px) {
   .app-shell {
     grid-template-columns: 240px 1fr;
@@ -547,6 +642,10 @@ h1 {
   }
 
   .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .upload-grid {
     grid-template-columns: 1fr;
   }
 }

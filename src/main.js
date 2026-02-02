@@ -1,5 +1,7 @@
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const { spawn } = require('child_process');
+const { randomUUID } = require('crypto');
+const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_PYTHON = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
@@ -59,10 +61,12 @@ function runPythonParser(filePath) {
   });
 }
 
-function runPythonGraphSummary() {
+function runPythonGraphSummary(dataDir) {
   return new Promise((resolve, reject) => {
     const args = ['-m', 'backend.session', '--summary'];
-    if (process.env.CAT_DATA_DIR) {
+    if (dataDir) {
+      args.push('--data-dir', dataDir);
+    } else if (process.env.CAT_DATA_DIR) {
       args.push('--data-dir', process.env.CAT_DATA_DIR);
     }
 
@@ -101,6 +105,36 @@ function runPythonGraphSummary() {
   });
 }
 
+function ensureDataDir() {
+  const dataDir = path.join(app.getPath('userData'), 'data');
+  fs.mkdirSync(dataDir, { recursive: true });
+  return dataDir;
+}
+
+function writeJson(filePath, payload) {
+  fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf-8');
+}
+
+function buildGraphFromUnits(units) {
+  const nodes = (Array.isArray(units) ? units : []).map((unit) => {
+    const nodeId = unit?.id || randomUUID();
+    return {
+      id: nodeId,
+      title: unit?.topic || unit?.summary || 'Untitled topic',
+      type: 'Concept',
+    };
+  });
+
+  return {
+    Nodes: nodes,
+    Edges: [],
+  };
+}
+
+function createTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
 app.whenReady().then(() => {
   createWindow();
 
@@ -116,8 +150,66 @@ app.whenReady().then(() => {
     return runPythonParser(filePath);
   });
 
+  ipcMain.handle('process-upload', async (event, filePath) => {
+    if (!filePath) {
+      throw new Error('No file path provided');
+    }
+
+    const dataDir = ensureDataDir();
+    event.sender.send('upload:status', {
+      message: 'Parsing PPTX...',
+      tone: 'neutral',
+      state: 'busy',
+    });
+
+    try {
+      const units = await runPythonParser(filePath);
+      const timestamp = createTimestamp();
+      const unitsPath = path.join(dataDir, 'knowledge-units.json');
+      const graphPath = path.join(dataDir, `knowledge-graph-${timestamp}.json`);
+      const graphPayload = buildGraphFromUnits(units);
+
+      writeJson(unitsPath, {
+        updatedAt: new Date().toISOString(),
+        sourceFile: filePath,
+        units: units,
+      });
+      writeJson(graphPath, graphPayload);
+
+      event.sender.send('upload:status', {
+        message: 'Knowledge graph updated',
+        tone: 'success',
+        state: 'busy',
+        fileName: path.basename(filePath),
+      });
+
+      const summary = await runPythonGraphSummary(dataDir);
+
+      event.sender.send('upload:status', {
+        message: 'Upload complete',
+        tone: 'success',
+        state: 'idle',
+      });
+
+      return {
+        unitCount: Array.isArray(units) ? units.length : 0,
+        summary,
+        unitsPath,
+        graphPath,
+      };
+    } catch (error) {
+      event.sender.send('upload:status', {
+        message: error.message || 'Upload failed',
+        tone: 'error',
+        state: 'idle',
+      });
+      throw error;
+    }
+  });
+
   ipcMain.handle('backend:sync', async () => {
-    return runPythonGraphSummary();
+    const dataDir = ensureDataDir();
+    return runPythonGraphSummary(dataDir);
   });
 
   app.on('activate', () => {

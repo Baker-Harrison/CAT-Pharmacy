@@ -13,6 +13,148 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function createUploadRenderer(rootDocument, api, onSummaryUpdated) {
+  const elements = {
+    dropzone: rootDocument.querySelector("#uploadDropzone"),
+    input: rootDocument.querySelector("#uploadInput"),
+    status: rootDocument.querySelector("#uploadStatus"),
+    fileName: rootDocument.querySelector("#uploadFileName"),
+    openUploadButton: rootDocument.querySelector("#openUpload"),
+    uploadView: rootDocument.querySelector("#uploadView"),
+  };
+
+  const state = { isUploading: false };
+
+  function setStatus(message, tone = "neutral") {
+    if (!elements.status) return;
+    elements.status.textContent = message;
+    elements.status.dataset.tone = tone;
+  }
+
+  function setDropzoneState(nextState) {
+    if (!elements.dropzone) return;
+    elements.dropzone.dataset.state = nextState;
+  }
+
+  function setFileName(name) {
+    if (!elements.fileName) return;
+    elements.fileName.textContent = name || "No file selected";
+  }
+
+  function isSupportedFile(filePath) {
+    return typeof filePath === "string" && filePath.toLowerCase().endsWith(".pptx");
+  }
+
+  async function handleFilePath(filePath, displayName) {
+    if (!filePath) return;
+    if (!isSupportedFile(filePath)) {
+      setStatus("Only .pptx files are supported", "error");
+      return;
+    }
+    if (!api?.processUpload) {
+      setStatus("Upload service not available", "error");
+      return;
+    }
+    if (state.isUploading) return;
+
+    state.isUploading = true;
+    setDropzoneState("busy");
+    setFileName(displayName || filePath.split(/[\\/]/).pop());
+    setStatus("Sending file to parser...", "neutral");
+
+    try {
+      const result = await api.processUpload(filePath);
+      const unitCount = typeof result?.unitCount === "number" ? result.unitCount : 0;
+      setStatus(`Parsed ${unitCount} knowledge units`, "success");
+      if (typeof onSummaryUpdated === "function" && result?.summary) {
+        onSummaryUpdated(result.summary);
+      }
+    } catch (error) {
+      setStatus(error?.message || "Upload failed", "error");
+    } finally {
+      state.isUploading = false;
+      setDropzoneState("idle");
+    }
+  }
+
+  function handleFileInputChange() {
+    if (!elements.input) return;
+    const file = elements.input.files?.[0];
+    const filePath = file?.path || file?.name;
+    handleFilePath(filePath, file?.name);
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    setDropzoneState("idle");
+    const file = event.dataTransfer?.files?.[0];
+    const filePath = file?.path || file?.name;
+    handleFilePath(filePath, file?.name);
+  }
+
+  function handleDragOver(event) {
+    event.preventDefault();
+    setDropzoneState("drag");
+  }
+
+  function handleDragLeave(event) {
+    event.preventDefault();
+    if (state.isUploading) return;
+    setDropzoneState("idle");
+  }
+
+  function bindDropzone() {
+    if (elements.dropzone) {
+      elements.dropzone.addEventListener("click", () => {
+        if (elements.input) elements.input.click();
+      });
+      elements.dropzone.addEventListener("dragover", handleDragOver);
+      elements.dropzone.addEventListener("dragleave", handleDragLeave);
+      elements.dropzone.addEventListener("drop", handleDrop);
+    }
+    if (elements.input) {
+      elements.input.addEventListener("change", handleFileInputChange);
+    }
+  }
+
+  function bindUploadButton() {
+    if (!elements.openUploadButton || !elements.uploadView) return;
+    elements.openUploadButton.addEventListener("click", () => {
+      elements.uploadView.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function bindStatusUpdates() {
+    if (!api?.onUploadStatus) return;
+    api.onUploadStatus((payload) => {
+      if (!payload) return;
+      if (payload.state) {
+        setDropzoneState(payload.state);
+      }
+      if (payload.fileName) {
+        setFileName(payload.fileName);
+      }
+      if (payload.message) {
+        setStatus(payload.message, payload.tone || "neutral");
+      }
+    });
+  }
+
+  function initialize() {
+    bindDropzone();
+    bindUploadButton();
+    bindStatusUpdates();
+    setStatus("Ready to ingest", "neutral");
+    setDropzoneState("idle");
+  }
+
+  return {
+    elements,
+    initialize,
+    handleFilePath,
+  };
+}
+
 function createDashboardRenderer(rootDocument) {
   const elements = {
     syncButton: rootDocument.querySelector("#syncButton"),
@@ -238,9 +380,13 @@ function createDashboardRenderer(rootDocument) {
 
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   const dashboard = createDashboardRenderer(document);
+  const upload = createUploadRenderer(document, window.catApi, (summary) => {
+    dashboard.renderSummary(summary);
+  });
   dashboard.initialize();
+  upload.initialize();
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { createDashboardRenderer, formatTimestamp };
+  module.exports = { createDashboardRenderer, createUploadRenderer, formatTimestamp };
 }
