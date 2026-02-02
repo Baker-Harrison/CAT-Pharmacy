@@ -170,7 +170,9 @@ app.whenReady().then(() => {
   handleIpc('backend:sync', () => runPython('backend.session', ['--summary', '--data-dir', ensureDataDir()]));
   handleIpc('lessons:list', () => runPython('backend.lessons', ['--data-dir', ensureDataDir()]));
   handleIpc('learning:start', () => runPython('backend.session', ['--process-response', '--data-dir', ensureDataDir()], JSON.stringify({ action: 'start' })));
-  handleIpc('learning:processResponse', (event, payload) => runPython('backend.session', ['--process-response', '--data-dir', ensureDataDir()], JSON.stringify(payload)));
+  handleIpc('learning:processResponse', (event, payload) =>
+    runPython('backend.session', ['--process-response', '--data-dir', ensureDataDir()], JSON.stringify(payload))
+  );
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

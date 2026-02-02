@@ -1330,7 +1330,6 @@ function setCurrentSessionDate(rootDocument) {
   });
   label.textContent = `Current Session: ${formatted}`;
 }
-
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   const dashboard = createDashboardRenderer(document);
   const upload = createUploadRenderer(document, window.catApi, (summary) => {
