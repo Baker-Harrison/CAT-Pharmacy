@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
@@ -24,9 +24,18 @@
         </div>
 
         <nav class="nav">
-          <button class="nav-item active" data-view="ingest" title="Upload and parse new source decks">Ingest</button>
-          <button class="nav-item" data-view="lessons" title="Launch brilliant-style lessons">Lessons</button>
-          <button class="nav-item" data-view="exams" title="Generate practice exams">Practice Exams</button>
+          <button class="nav-item active" data-view="ingest" title="Upload and parse new source decks">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-upload-cloud"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>
+            Ingest
+          </button>
+          <button class="nav-item" data-view="lessons" title="Launch brilliant-style lessons">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            Lessons
+          </button>
+          <button class="nav-item" data-view="exams" title="Generate practice exams">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-graduation-cap"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            Practice Exams
+          </button>
         </nav>
 
         <div class="sidebar-panel">
@@ -60,7 +69,9 @@
               <div class="card-title">Upload PPTX</div>
               <div class="upload-dropzone" id="uploadDropzone" data-state="idle">
                 <input type="file" id="uploadInput" accept=".pptx" />
-                <div class="upload-icon">UP</div>
+                <div class="upload-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-up"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>
+                </div>
                 <div class="upload-title">Drag & drop a PowerPoint deck</div>
                 <div class="upload-sub">or click to browse your files</div>
                 <div class="upload-meta" id="uploadFileName">No file selected</div>
