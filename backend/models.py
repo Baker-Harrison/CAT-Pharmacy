@@ -1,3 +1,8 @@
+"""
+Core domain models and Knowledge Graph logic for CAT-Pharmacy.
+This module defines the data structures for Knowledge Units, Nodes, and Edges.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

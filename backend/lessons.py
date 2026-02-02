@@ -1,3 +1,8 @@
+"""
+Lesson Plan Management for CAT-Pharmacy.
+Handles retrieval and organization of study modules for the UI.
+"""
+
 from __future__ import annotations
 
 import argparse

@@ -1,3 +1,8 @@
+/**
+ * CAT-Pharmacy Frontend Application Logic
+ * Orchestrates UI state management, interactive graphing, and IPC communication.
+ */
+
 const DEFAULT_LEVEL_ORDER = ["Advanced", "Proficient", "Developing", "Novice", "Unknown"];
 
 function formatTimestamp(value) {

@@ -1,3 +1,8 @@
+"""
+Lecture Slide Parser for CAT-Pharmacy.
+Extracts structured Knowledge Units from PowerPoint (.pptx) files using python-pptx.
+"""
+
 from __future__ import annotations
 
 import argparse

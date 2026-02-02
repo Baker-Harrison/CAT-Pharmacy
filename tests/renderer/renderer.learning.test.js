@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createLearningStateMachine } = require('./renderer');
+const { createLearningStateMachine } = require('../../src/renderer');
 
 test('learning state transitions: Learning -> Assessment -> Result', () => {
   const machine = createLearningStateMachine();

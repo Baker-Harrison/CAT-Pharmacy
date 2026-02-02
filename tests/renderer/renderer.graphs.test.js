@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { InteractiveGraph } = require("./renderer");
+const { InteractiveGraph } = require("../../src/renderer");
 
 function createMockElement(tagName = "div") {
   const element = {

@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { createLessonsRenderer } = require("./renderer");
+const { createLessonsRenderer } = require("../../src/renderer");
 
 function createMockElement(tagName = "div") {
   const listeners = new Map();

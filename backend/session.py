@@ -1,3 +1,8 @@
+"""
+Adaptive Learning Session Engine for CAT-Pharmacy.
+Handles mastery calculations, IRT-based student modeling, and session summary generation.
+"""
+
 from __future__ import annotations
 
 import argparse

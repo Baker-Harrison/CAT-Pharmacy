@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { createDashboardRenderer } = require("./renderer");
+const { createDashboardRenderer } = require("../../src/renderer");
 
 function createMockElement(tagName = "div") {
   const element = {
