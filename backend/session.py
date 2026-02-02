@@ -4,14 +4,19 @@ import argparse
 import json
 import math
 import os
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 from uuid import UUID, uuid4
 
 from backend.models import GraphSummary
+
+SESSION_STATE_FILE = "adaptive-session.json"
+KNOWLEDGE_UNITS_FILE = "knowledge-units.json"
+STUDENT_STATE_PREFIX = "student-state"
 
 
 @dataclass(frozen=True)
@@ -370,9 +375,418 @@ def _summary_to_payload(summary: GraphSummary) -> dict:
     return summary.to_payload()
 
 
+def _resolve_units_path(data_dir: Optional[Path]) -> Optional[Path]:
+    target_dir = data_dir or _default_data_dir()
+    if target_dir is None:
+        return None
+    if not target_dir.exists():
+        return None
+    units_path = target_dir / KNOWLEDGE_UNITS_FILE
+    if units_path.exists():
+        return units_path
+    return None
+
+
+def _load_units(data_dir: Optional[Path]) -> List[dict]:
+    units_path = _resolve_units_path(data_dir)
+    if units_path is None:
+        return []
+
+    payload = json.loads(units_path.read_text(encoding="utf-8"))
+    raw_units = payload.get("units") if isinstance(payload, dict) else payload
+    if not isinstance(raw_units, list):
+        return []
+
+    normalized: List[dict] = []
+    for index, raw in enumerate(raw_units):
+        if not isinstance(raw, dict):
+            continue
+        unit_id = raw.get("id") or raw.get("Id") or f"unit-{index}"
+        topic = raw.get("topic") or raw.get("Topic") or raw.get("summary") or raw.get("Summary") or "Untitled"
+        summary = raw.get("summary") or raw.get("Summary") or ""
+        key_points = raw.get("key_points") or raw.get("keyPoints") or raw.get("KeyPoints") or []
+        if not isinstance(key_points, list):
+            key_points = []
+        normalized.append(
+            {
+                "id": str(unit_id),
+                "topic": str(topic),
+                "summary": str(summary),
+                "keyPoints": [str(point) for point in key_points if point],
+            }
+        )
+
+    return normalized
+
+
+def _resolve_session_state_path(data_dir: Optional[Path]) -> Optional[Path]:
+    target_dir = data_dir or _default_data_dir()
+    if target_dir is None:
+        return None
+    if not target_dir.exists():
+        return None
+    return target_dir / SESSION_STATE_FILE
+
+
+def _load_session_state(data_dir: Optional[Path]) -> Optional[dict]:
+    state_path = _resolve_session_state_path(data_dir)
+    if state_path is None or not state_path.exists():
+        return None
+    try:
+        return json.loads(state_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+
+def _save_session_state(data_dir: Optional[Path], state: dict) -> None:
+    target_dir = data_dir or _default_data_dir()
+    if target_dir is None:
+        return
+    target_dir.mkdir(parents=True, exist_ok=True)
+    state_path = target_dir / SESSION_STATE_FILE
+    state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+
+def _resolve_student_state_save_path(data_dir: Optional[Path]) -> Optional[Path]:
+    target_dir = data_dir or _default_data_dir()
+    if target_dir is None:
+        return None
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    existing = resolve_student_state_path(target_dir)
+    if existing is not None:
+        return existing
+
+    timestamp = datetime.utcnow().isoformat().replace(":", "-").replace(".", "-")
+    return target_dir / f"{STUDENT_STATE_PREFIX}-{timestamp}.json"
+
+
+def _initialize_session(units: List[dict]) -> dict:
+    ability = AbilityEstimate.initial()
+    unit_ids = [unit["id"] for unit in units]
+    count = len(unit_ids) or 1
+    unit_difficulties = {
+        unit_id: ((index / (count - 1)) * 2.0 - 1.0) if count > 1 else 0.0
+        for index, unit_id in enumerate(unit_ids)
+    }
+    mastery = {
+        unit_id: {
+            "score": 0.0,
+            "level": "Unknown",
+            "attempts": 0,
+            "correct": 0,
+            "lastAssessed": None,
+        }
+        for unit_id in unit_ids
+    }
+    return {
+        "sessionId": str(uuid4()),
+        "createdAt": datetime.utcnow().isoformat() + "Z",
+        "updatedAt": datetime.utcnow().isoformat() + "Z",
+        "ability": {
+            "theta": ability.theta,
+            "standardError": ability.standard_error,
+        },
+        "responses": [],
+        "remainingUnitIds": unit_ids,
+        "activeUnitId": None,
+        "unitDifficulties": unit_difficulties,
+        "mastery": mastery,
+        "stallCount": 0,
+    }
+
+
+def _update_ability_estimate(theta: float, item_parameter: ItemParameter, is_correct: bool) -> AbilityEstimate:
+    probability = item_parameter.probability_correct(theta)
+    score = 1.0 if is_correct else 0.0
+    info = max(item_parameter.fisher_information(theta), 1e-3)
+    gradient = score - probability
+    step = gradient / info
+
+    new_theta = max(-3.0, min(3.0, theta + step))
+    standard_error = 1.0 / math.sqrt(info)
+    return AbilityEstimate(uuid4(), new_theta, standard_error, "MLE", datetime.utcnow())
+
+
+def _normalize_level(score: float, attempts: int) -> str:
+    if attempts <= 0:
+        return "Unknown"
+    if score >= 0.85:
+        return "Advanced"
+    if score >= 0.65:
+        return "Proficient"
+    if score >= 0.45:
+        return "Developing"
+    if score >= 0.2:
+        return "Novice"
+    return "Unknown"
+
+
+def _update_mastery_entry(entry: dict, is_correct: bool, assessed_at: str) -> dict:
+    attempts = int(entry.get("attempts") or 0) + 1
+    correct = int(entry.get("correct") or 0) + (1 if is_correct else 0)
+    score = float(entry.get("score") or 0.0)
+    score = max(0.0, min(1.0, score + (0.2 if is_correct else -0.12)))
+    level = _normalize_level(score, attempts)
+    return {
+        "score": score,
+        "level": level,
+        "attempts": attempts,
+        "correct": correct,
+        "lastAssessed": assessed_at,
+    }
+
+
+def _evaluate_response(unit: dict, payload: dict) -> bool:
+    if isinstance(payload.get("isCorrect"), bool):
+        return payload["isCorrect"]
+
+    raw_answer = payload.get("answer") or payload.get("rawResponse") or ""
+    if not isinstance(raw_answer, str) or not raw_answer.strip():
+        return False
+
+    answer = raw_answer.lower()
+    key_points = unit.get("keyPoints") or []
+    for key_point in key_points:
+        if isinstance(key_point, str) and key_point.strip().lower() in answer:
+            return True
+    return False
+
+
+def _select_next_unit(
+    units_by_id: Dict[str, dict],
+    remaining_unit_ids: List[str],
+    mastery: Dict[str, dict],
+    unit_difficulties: Dict[str, float],
+    theta: float,
+) -> Optional[dict]:
+    if not remaining_unit_ids:
+        return None
+
+    candidates: List[dict] = []
+    for unit_id in remaining_unit_ids:
+        unit = units_by_id.get(unit_id)
+        if unit is None:
+            continue
+        entry = mastery.get(unit_id, {})
+        score = float(entry.get("score") or 0.0)
+        last_assessed = entry.get("lastAssessed")
+        difficulty = float(unit_difficulties.get(unit_id, 0.0))
+        info = ItemParameter(difficulty=difficulty).fisher_information(theta)
+        priority = (1.0 - score) * (1.0 + info)
+        candidates.append(
+            {
+                "unit": unit,
+                "priority": priority,
+                "lastAssessed": last_assessed or "",
+            }
+        )
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda item: (item["priority"], item["lastAssessed"]))
+    return candidates[-1]["unit"]
+
+
+def _build_mastery_levels(mastery: Dict[str, dict]) -> Dict[str, int]:
+    levels = {"Advanced": 0, "Proficient": 0, "Developing": 0, "Novice": 0, "Unknown": 0}
+    for entry in mastery.values():
+        level = entry.get("level") or "Unknown"
+        if level not in levels:
+            level = "Unknown"
+        levels[level] = levels.get(level, 0) + 1
+    return levels
+
+
+def _save_student_state(
+    data_dir: Optional[Path],
+    session_id: str,
+    ability: dict,
+    mastery: Dict[str, dict],
+) -> None:
+    save_path = _resolve_student_state_save_path(data_dir)
+    if save_path is None:
+        return
+
+    mastery_list: List[dict] = []
+    for unit_id, entry in mastery.items():
+        mastery_list.append(
+            {
+                "domainNodeId": unit_id,
+                "level": entry.get("level"),
+                "lastAssessed": entry.get("lastAssessed"),
+                "score": entry.get("score"),
+                "attempts": entry.get("attempts"),
+                "correct": entry.get("correct"),
+            }
+        )
+
+    payload = {
+        "sessionId": session_id,
+        "updatedAt": datetime.utcnow().isoformat() + "Z",
+        "ability": ability,
+        "knowledgeMasteries": mastery_list,
+    }
+    save_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def process_response(payload: dict, data_dir: Optional[Path]) -> dict:
+    units = _load_units(data_dir)
+    if not units:
+        raise RuntimeError("No knowledge units available. Ingest content before starting a session.")
+
+    units_by_id = {unit["id"]: unit for unit in units}
+    state = _load_session_state(data_dir) or _initialize_session(units)
+
+    mastery = state.get("mastery") or {}
+    remaining_unit_ids = list(state.get("remainingUnitIds") or [])
+    unit_difficulties = state.get("unitDifficulties") or {}
+    responses = list(state.get("responses") or [])
+    ability = state.get("ability") or {}
+
+    action = payload.get("action") or "response"
+    assessed_at = datetime.utcnow().isoformat() + "Z"
+
+    if payload.get("reset"):
+        state = _initialize_session(units)
+        mastery = state["mastery"]
+        remaining_unit_ids = list(state["remainingUnitIds"])
+        unit_difficulties = state["unitDifficulties"]
+        responses = list(state["responses"])
+        ability = state["ability"]
+
+    if not remaining_unit_ids:
+        remaining_unit_ids = [unit["id"] for unit in units]
+
+    current_unit_id = payload.get("unitId") or state.get("activeUnitId")
+    current_unit = units_by_id.get(str(current_unit_id)) if current_unit_id else None
+
+    if action == "start" or current_unit is None:
+        current_unit = _select_next_unit(
+            units_by_id,
+            remaining_unit_ids,
+            mastery,
+            unit_difficulties,
+            float(ability.get("theta") or -1.5),
+        )
+        state["activeUnitId"] = current_unit["id"] if current_unit else None
+        state["updatedAt"] = assessed_at
+        _save_session_state(data_dir, state)
+        return {
+            "sessionId": state["sessionId"],
+            "currentUnit": current_unit,
+            "progress": {
+                "completed": len(responses),
+                "total": len(units),
+                "percent": round((len(responses) / max(len(units), 1)) * 100, 1),
+            },
+            "ability": ability,
+            "masteryLevels": _build_mastery_levels(mastery),
+            "isComplete": False if current_unit else True,
+        }
+
+    is_correct = _evaluate_response(current_unit, payload)
+    previous_theta = float(ability.get("theta") or -1.5)
+    difficulty = float(unit_difficulties.get(current_unit["id"], 0.0))
+    updated_ability = _update_ability_estimate(previous_theta, ItemParameter(difficulty=difficulty), is_correct)
+
+    ability = {
+        "theta": updated_ability.theta,
+        "standardError": updated_ability.standard_error,
+    }
+
+    responses.append(
+        {
+            "unitId": current_unit["id"],
+            "isCorrect": is_correct,
+            "answer": payload.get("answer") or payload.get("rawResponse") or "",
+            "timestamp": assessed_at,
+            "abilityAfter": ability,
+        }
+    )
+
+    mastery_entry = mastery.get(current_unit["id"]) or {
+        "score": 0.0,
+        "level": "Unknown",
+        "attempts": 0,
+        "correct": 0,
+        "lastAssessed": None,
+    }
+    mastery[current_unit["id"]] = _update_mastery_entry(mastery_entry, is_correct, assessed_at)
+
+    if mastery[current_unit["id"]]["score"] >= 0.85 and current_unit["id"] in remaining_unit_ids:
+        remaining_unit_ids.remove(current_unit["id"])
+
+    theta_shift = abs(updated_ability.theta - previous_theta)
+    stall_count = int(state.get("stallCount") or 0)
+    if theta_shift < 0.01:
+        stall_count += 1
+    else:
+        stall_count = 0
+
+    criteria = TerminationCriteria.default()
+    is_complete = False
+    if len(responses) >= criteria.max_items:
+        is_complete = True
+    if updated_ability.standard_error <= criteria.target_standard_error:
+        is_complete = True
+    if criteria.mastery_theta is not None and updated_ability.theta >= criteria.mastery_theta:
+        is_complete = True
+    if stall_count >= criteria.max_stall_count:
+        is_complete = True
+    if not remaining_unit_ids:
+        is_complete = True
+
+    next_unit = None
+    if not is_complete:
+        next_unit = _select_next_unit(
+            units_by_id,
+            remaining_unit_ids,
+            mastery,
+            unit_difficulties,
+            updated_ability.theta,
+        )
+
+    state.update(
+        {
+            "updatedAt": assessed_at,
+            "ability": ability,
+            "responses": responses,
+            "remainingUnitIds": remaining_unit_ids,
+            "activeUnitId": next_unit["id"] if next_unit else None,
+            "mastery": mastery,
+            "stallCount": stall_count,
+        }
+    )
+
+    _save_session_state(data_dir, state)
+    _save_student_state(data_dir, state["sessionId"], ability, mastery)
+
+    feedback = "Great job! Mastery is trending up." if is_correct else "Review the key points and try again."
+    return {
+        "sessionId": state["sessionId"],
+        "currentUnit": current_unit,
+        "nextUnit": next_unit,
+        "result": {
+            "isCorrect": is_correct,
+            "feedback": feedback,
+        },
+        "progress": {
+            "completed": len(responses),
+            "total": len(units),
+            "percent": round((len(responses) / max(len(units), 1)) * 100, 1),
+        },
+        "ability": ability,
+        "masteryLevels": _build_mastery_levels(mastery),
+        "isComplete": is_complete,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Adaptive session utilities")
     parser.add_argument("--summary", action="store_true", help="Output knowledge graph summary as JSON")
+    parser.add_argument("--process-response", action="store_true", help="Process a learning response as JSON")
     parser.add_argument("--data-dir", help="Override knowledge graph data directory")
     args = parser.parse_args()
 
@@ -382,6 +796,14 @@ def main() -> int:
         student_state_path = resolve_student_state_path(data_dir)
         summary = build_graph_summary(graph_path, student_state_path)
         print(json.dumps(_summary_to_payload(summary)))
+        return 0
+
+    if args.process_response:
+        data_dir = Path(args.data_dir) if args.data_dir else None
+        raw = sys.stdin.read()
+        payload = json.loads(raw) if raw.strip() else {}
+        result = process_response(payload, data_dir)
+        print(json.dumps(result))
         return 0
 
     parser.print_help()

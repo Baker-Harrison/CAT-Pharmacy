@@ -149,6 +149,53 @@ function runPythonLessons(dataDir) {
   });
 }
 
+function runPythonProcessResponse(payload, dataDir) {
+  return new Promise((resolve, reject) => {
+    const args = ['-m', 'backend.session', '--process-response'];
+    if (dataDir) {
+      args.push('--data-dir', dataDir);
+    } else if (process.env.CAT_DATA_DIR) {
+      args.push('--data-dir', process.env.CAT_DATA_DIR);
+    }
+
+    const python = spawn(DEFAULT_PYTHON, args, {
+      cwd: path.resolve(__dirname, '..'),
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    python.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    python.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    python.on('error', (error) => {
+      reject(error);
+    });
+
+    python.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr || `Session exited with code ${code}`));
+        return;
+      }
+      try {
+        const parsed = JSON.parse(stdout);
+        resolve(parsed);
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    python.stdin.write(JSON.stringify(payload || {}));
+    python.stdin.end();
+  });
+}
+
 function ensureDataDir() {
   const dataDir = path.join(app.getPath('userData'), 'data');
   fs.mkdirSync(dataDir, { recursive: true });
@@ -259,6 +306,16 @@ app.whenReady().then(() => {
   ipcMain.handle('lessons:list', async () => {
     const dataDir = ensureDataDir();
     return runPythonLessons(dataDir);
+  });
+
+  ipcMain.handle('learning:start', async () => {
+    const dataDir = ensureDataDir();
+    return runPythonProcessResponse({ action: 'start' }, dataDir);
+  });
+
+  ipcMain.handle('learning:processResponse', async (_event, payload) => {
+    const dataDir = ensureDataDir();
+    return runPythonProcessResponse(payload, dataDir);
   });
 
   app.on('activate', () => {

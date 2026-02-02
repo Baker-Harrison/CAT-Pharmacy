@@ -12,4 +12,6 @@ contextBridge.exposeInMainWorld('catApi', {
     }),
   syncBackend: () => ipcRenderer.invoke('backend:sync'),
   getLessons: () => ipcRenderer.invoke('lessons:list'),
+  startLearning: () => ipcRenderer.invoke('learning:start'),
+  processLearningResponse: (payload) => ipcRenderer.invoke('learning:processResponse', payload),
 });

@@ -181,6 +181,61 @@
           </div>
           <div class="lesson-empty" id="lessonEmpty">No lessons available yet. Generate lessons after ingesting content.</div>
         </section>
+
+        <section class="learning-view" id="learningView">
+          <div class="card learning-shell" id="learningShell" data-phase="learning">
+            <div class="learning-header">
+              <div>
+                <div class="pill">Personalized Learning</div>
+                <h2 id="learningTitle">Personalized Learning Session</h2>
+                <p class="subtitle" id="learningSubtitle">
+                  Focus on the next best knowledge unit and reinforce mastery with quick assessments.
+                </p>
+              </div>
+              <div class="learning-progress">
+                <div class="learning-progress-label">
+                  <span id="learningProgressText">0 of 0 complete</span>
+                  <span id="learningPhase">Learning</span>
+                </div>
+                <div class="learning-progress-bar">
+                  <span id="learningProgressFill"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="learning-body">
+              <div class="learning-concept">
+                <div class="card-title">Current Concept</div>
+                <div class="learning-concept-title" id="learningConceptTitle">Awaiting session</div>
+                <div class="learning-concept-summary" id="learningConceptSummary">
+                  Start a session to load the next adaptive concept.
+                </div>
+                <ul class="learning-keypoints" id="learningKeyPoints"></ul>
+              </div>
+
+              <div class="learning-panel">
+                <div class="learning-panel-header">
+                  <div class="card-title">Assessment</div>
+                  <div class="learning-phase-chip" id="learningPhaseChip">Learning</div>
+                </div>
+                <div class="learning-prompt" id="learningPrompt">
+                  Review the concept summary and begin the quick check when ready.
+                </div>
+                <textarea
+                  class="learning-answer"
+                  id="learningAnswer"
+                  placeholder="Type a short explanation or recall the key points..."
+                ></textarea>
+                <div class="learning-feedback" id="learningFeedback"></div>
+                <div class="learning-actions">
+                  <button class="secondary" id="learningStartAssessment">Start assessment</button>
+                  <button class="primary" id="learningSubmitAnswer">Submit answer</button>
+                  <button class="ghost" id="learningContinue">Continue</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
 
