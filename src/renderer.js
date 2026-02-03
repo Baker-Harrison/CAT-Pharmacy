@@ -225,11 +225,34 @@ function createLessonsRenderer(documentRoot, api) {
     activeLessonId: null,
     stage: "idle",
     requestId: 0,
+    isLoading: false,
   };
 
   function clearElement(target) {
     if (!target) return;
     target.innerHTML = "";
+  }
+
+  function renderSkeletons(container, count = 3) {
+    if (!container) return;
+    clearElement(container);
+    for (let i = 0; i < count; i++) {
+      const skeleton = documentRoot.createElement("div");
+      skeleton.className = "list-item";
+      skeleton.innerHTML = `
+        <div class="skeleton skeleton-title" style="margin-bottom: 8px;"></div>
+        <div class="skeleton skeleton-text" style="width: 60%;"></div>
+      `;
+      container.appendChild(skeleton);
+    }
+  }
+
+  function setLoading(isLoading) {
+    state.isLoading = isLoading;
+    if (elements.startButton) {
+      elements.startButton.disabled = isLoading;
+      elements.startButton.textContent = isLoading ? "Loading..." : "Generate Lesson";
+    }
   }
 
   function setStage(stage) {
@@ -405,6 +428,10 @@ function createLessonsRenderer(documentRoot, api) {
   async function loadLessons() {
     if (!api?.getLessons) return;
     const requestId = ++state.requestId;
+    setLoading(true);
+    renderSkeletons(elements.list, 3);
+    if (elements.empty) elements.empty.style.display = "none";
+    
     try {
       const payload = await api.getLessons();
       if (requestId !== state.requestId) return;
@@ -417,15 +444,20 @@ function createLessonsRenderer(documentRoot, api) {
       }
     } catch (error) {
       if (requestId !== state.requestId) return;
+      clearElement(elements.list);
       if (elements.empty) {
         elements.empty.textContent = normalizeErrorMessage(error, "Failed to load lessons.");
         elements.empty.style.display = "block";
       }
+    } finally {
+      setLoading(false);
     }
   }
 
   async function handleStart() {
     if (!api?.generateLesson) return;
+    setLoading(true);
+    
     if (!state.lessons.length) {
       try {
         await api.generateLesson();
@@ -434,6 +466,7 @@ function createLessonsRenderer(documentRoot, api) {
           elements.empty.textContent = normalizeErrorMessage(error, "Failed to generate lesson.");
           elements.empty.style.display = "block";
         }
+        setLoading(false);
         return;
       }
       await loadLessons();
@@ -441,8 +474,12 @@ function createLessonsRenderer(documentRoot, api) {
     }
 
     const lesson = state.lessons.find((item) => item.id === state.activeLessonId) || state.lessons[0];
-    if (!lesson) return;
+    if (!lesson) {
+      setLoading(false);
+      return;
+    }
     renderLessonDetails(lesson);
+    setLoading(false);
   }
 
   function handleContinue() {
@@ -483,11 +520,34 @@ function createExamRenderer(documentRoot, api) {
     exams: [],
     activeExamId: null,
     requestId: 0,
+    isLoading: false,
   };
 
   function clearElement(target) {
     if (!target) return;
     target.innerHTML = "";
+  }
+
+  function renderSkeletons(container, count = 3) {
+    if (!container) return;
+    clearElement(container);
+    for (let i = 0; i < count; i++) {
+      const skeleton = documentRoot.createElement("div");
+      skeleton.className = "list-item";
+      skeleton.innerHTML = `
+        <div class="skeleton skeleton-title" style="margin-bottom: 8px;"></div>
+        <div class="skeleton skeleton-text" style="width: 50%;"></div>
+      `;
+      container.appendChild(skeleton);
+    }
+  }
+
+  function setLoading(isLoading) {
+    state.isLoading = isLoading;
+    if (elements.generateButton) {
+      elements.generateButton.disabled = isLoading;
+      elements.generateButton.textContent = isLoading ? "Generating..." : "Generate Exam";
+    }
   }
 
   function renderExamList() {
@@ -572,6 +632,10 @@ function createExamRenderer(documentRoot, api) {
   async function loadExams() {
     if (!api?.getExams) return;
     const requestId = ++state.requestId;
+    setLoading(true);
+    renderSkeletons(elements.list, 3);
+    if (elements.empty) elements.empty.style.display = "none";
+    
     try {
       const payload = await api.getExams();
       if (requestId !== state.requestId) return;
@@ -584,15 +648,19 @@ function createExamRenderer(documentRoot, api) {
       }
     } catch (error) {
       if (requestId !== state.requestId) return;
+      clearElement(elements.list);
       if (elements.empty) {
         elements.empty.textContent = normalizeErrorMessage(error, "Failed to load exams.");
         elements.empty.style.display = "block";
       }
+    } finally {
+      setLoading(false);
     }
   }
 
   async function handleGenerateExam() {
     if (!api?.generateExam) return;
+    setLoading(true);
     try {
       await api.generateExam();
       await loadExams();
@@ -601,6 +669,8 @@ function createExamRenderer(documentRoot, api) {
         elements.empty.textContent = normalizeErrorMessage(error, "Failed to generate exam.");
         elements.empty.style.display = "block";
       }
+    } finally {
+      setLoading(false);
     }
   }
 
