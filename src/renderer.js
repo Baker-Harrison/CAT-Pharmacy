@@ -685,7 +685,7 @@ function createExamRenderer(documentRoot, api) {
   };
 }
 
-function createCommandPalette(documentRoot, navigation) {
+function createCommandPalette(documentRoot, navigation, actions) {
   let overlay = null;
   let input = null;
   let results = null;
@@ -696,6 +696,9 @@ function createCommandPalette(documentRoot, navigation) {
     { id: "nav-ingest", label: "Go to Ingest", shortcut: "⌘1", action: () => navigation.setActiveView("ingest") },
     { id: "nav-lessons", label: "Go to Lessons", shortcut: "⌘2", action: () => navigation.setActiveView("lessons") },
     { id: "nav-exams", label: "Go to Practice Exams", shortcut: "⌘3", action: () => navigation.setActiveView("exams") },
+    { id: "gen-lesson", label: "Generate New Lesson", shortcut: "", action: () => { navigation.setActiveView("lessons"); actions.generateLesson?.(); } },
+    { id: "gen-exam", label: "Generate Practice Exam", shortcut: "", action: () => { navigation.setActiveView("exams"); actions.generateExam?.(); } },
+    { id: "upload", label: "Upload PPTX File", shortcut: "", action: () => { navigation.setActiveView("ingest"); actions.triggerUpload?.(); } },
   ];
 
   function createPaletteElements() {
@@ -852,12 +855,29 @@ function initializeApp() {
   const api = typeof window !== "undefined" ? window.catApi : null;
 
   const navigation = setupNavigation(document);
-  const commandPalette = createCommandPalette(document, navigation);
-  setupKeyboardShortcuts(document, navigation, commandPalette);
 
   const uploadRenderer = createUploadRenderer(document, api);
   const lessonsRenderer = createLessonsRenderer(document, api);
   const examRenderer = createExamRenderer(document, api);
+
+  // Actions for command palette
+  const actions = {
+    generateLesson: () => {
+      const startBtn = document.querySelector("#lessonStartButton");
+      if (startBtn) startBtn.click();
+    },
+    generateExam: () => {
+      const genBtn = document.querySelector("#examGenerateButton");
+      if (genBtn) genBtn.click();
+    },
+    triggerUpload: () => {
+      const uploadInput = document.querySelector("#uploadInput");
+      if (uploadInput) uploadInput.click();
+    },
+  };
+
+  const commandPalette = createCommandPalette(document, navigation, actions);
+  setupKeyboardShortcuts(document, navigation, commandPalette);
 
   uploadRenderer.initialize();
   lessonsRenderer.initialize();
