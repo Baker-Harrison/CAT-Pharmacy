@@ -615,11 +615,175 @@ function createExamRenderer(documentRoot, api) {
   };
 }
 
+function createCommandPalette(documentRoot, navigation) {
+  let overlay = null;
+  let input = null;
+  let results = null;
+  let isOpen = false;
+  let selectedIndex = 0;
+
+  const commands = [
+    { id: "nav-ingest", label: "Go to Ingest", shortcut: "⌘1", action: () => navigation.setActiveView("ingest") },
+    { id: "nav-lessons", label: "Go to Lessons", shortcut: "⌘2", action: () => navigation.setActiveView("lessons") },
+    { id: "nav-exams", label: "Go to Practice Exams", shortcut: "⌘3", action: () => navigation.setActiveView("exams") },
+  ];
+
+  function createPaletteElements() {
+    overlay = documentRoot.createElement("div");
+    overlay.className = "cmd-palette-overlay";
+    overlay.innerHTML = `
+      <div class="cmd-palette">
+        <div class="cmd-palette-input-wrapper">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" class="cmd-palette-input" placeholder="Type a command..." autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="cmd-palette-results"></div>
+        <div class="cmd-palette-footer">
+          <span><kbd>↑↓</kbd> Navigate</span>
+          <span><kbd>↵</kbd> Select</span>
+          <span><kbd>esc</kbd> Close</span>
+        </div>
+      </div>
+    `;
+    documentRoot.body.appendChild(overlay);
+    input = overlay.querySelector(".cmd-palette-input");
+    results = overlay.querySelector(".cmd-palette-results");
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
+
+    input.addEventListener("input", () => {
+      selectedIndex = 0;
+      renderResults();
+    });
+
+    input.addEventListener("keydown", handleKeyDown);
+  }
+
+  function getFilteredCommands() {
+    const query = input?.value?.toLowerCase() || "";
+    if (!query) return commands;
+    return commands.filter((cmd) => cmd.label.toLowerCase().includes(query));
+  }
+
+  function renderResults() {
+    if (!results) return;
+    const filtered = getFilteredCommands();
+    results.innerHTML = filtered
+      .map(
+        (cmd, i) => `
+        <div class="cmd-palette-item ${i === selectedIndex ? "selected" : ""}" data-index="${i}">
+          <span class="cmd-palette-item-label">${cmd.label}</span>
+          <span class="cmd-palette-item-shortcut">${cmd.shortcut || ""}</span>
+        </div>
+      `
+      )
+      .join("");
+
+    results.querySelectorAll(".cmd-palette-item").forEach((item) => {
+      item.addEventListener("click", () => {
+        const index = parseInt(item.dataset.index, 10);
+        executeCommand(index);
+      });
+    });
+  }
+
+  function handleKeyDown(e) {
+    const filtered = getFilteredCommands();
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      selectedIndex = (selectedIndex + 1) % filtered.length;
+      renderResults();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      selectedIndex = (selectedIndex - 1 + filtered.length) % filtered.length;
+      renderResults();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      executeCommand(selectedIndex);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+    }
+  }
+
+  function executeCommand(index) {
+    const filtered = getFilteredCommands();
+    const cmd = filtered[index];
+    if (cmd?.action) {
+      cmd.action();
+      close();
+    }
+  }
+
+  function open() {
+    if (!overlay) createPaletteElements();
+    isOpen = true;
+    overlay.classList.add("is-open");
+    input.value = "";
+    selectedIndex = 0;
+    renderResults();
+    setTimeout(() => input?.focus(), 50);
+  }
+
+  function close() {
+    if (!overlay) return;
+    isOpen = false;
+    overlay.classList.remove("is-open");
+  }
+
+  function toggle() {
+    isOpen ? close() : open();
+  }
+
+  return { open, close, toggle, isOpen: () => isOpen };
+}
+
+function setupKeyboardShortcuts(documentRoot, navigation, commandPalette) {
+  documentRoot.addEventListener("keydown", (e) => {
+    const isMac = navigator.platform.toUpperCase().includes("MAC");
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+
+    // Command Palette: Cmd/Ctrl + K
+    if (mod && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      commandPalette.toggle();
+      return;
+    }
+
+    // Navigation: Cmd/Ctrl + 1/2/3
+    if (mod && e.key === "1") {
+      e.preventDefault();
+      navigation.setActiveView("ingest");
+      return;
+    }
+    if (mod && e.key === "2") {
+      e.preventDefault();
+      navigation.setActiveView("lessons");
+      return;
+    }
+    if (mod && e.key === "3") {
+      e.preventDefault();
+      navigation.setActiveView("exams");
+      return;
+    }
+
+    // Escape to close palette
+    if (e.key === "Escape" && commandPalette.isOpen()) {
+      e.preventDefault();
+      commandPalette.close();
+    }
+  });
+}
+
 function initializeApp() {
   if (typeof document === "undefined") return;
   const api = typeof window !== "undefined" ? window.catApi : null;
 
-  setupNavigation(document);
+  const navigation = setupNavigation(document);
+  const commandPalette = createCommandPalette(document, navigation);
+  setupKeyboardShortcuts(document, navigation, commandPalette);
 
   const uploadRenderer = createUploadRenderer(document, api);
   const lessonsRenderer = createLessonsRenderer(document, api);
